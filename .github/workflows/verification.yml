@@ -1,0 +1,105 @@
+name: Verification
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nodes7-verification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    name: Syntax and negative control (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Verify every source/test/CI JavaScript file and an intentionally invalid negative control
+        run: node scripts/ci/check-syntax.cjs
+
+  legacy-unit:
+    name: Upstream unit baseline (${{ matrix.os }}, Node 22)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    env:
+      # Historical upstream date fixtures assume UTC-03, without documenting it.
+      # Pin the fixture timezone, not the production conversion behavior.
+      TZ: America/Sao_Paulo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Deliberate temporary exception: inherited package-lock v1 is stale (1.1.0 vs 1.1.2).
+      # This is NOT an npm-ci/reproducible-install claim. Fix in a separate lockfile PR.
+      - name: Install declared baseline dependencies without stale lock or lifecycle scripts
+        run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
+      - name: Verify inherited date fixture timezone (UTC-03)
+        run: node -e "for(const s of ['2019-11-12T21:02:16.709Z','2020-03-24T22:44:23.721Z']) if(new Date(s).getTimezoneOffset()!==180) throw Error('Expected fixed UTC-03 timezone for inherited fixtures')"
+      - name: Run existing upstream unit tests
+        run: npm test
+      - name: Verify exported public API contract (read-only)
+        run: node --test test/bootstrap/api.contract.test.cjs
+      - name: Preserve unit coverage evidence (not a hardware result)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-unit-coverage-${{ matrix.os }}-node22
+          path: |
+            coverage/
+            .nyc_output/
+          if-no-files-found: warn
+          retention-days: 14
+
+  package-smoke:
+    name: Package baseline (Ubuntu, Node 22)
+    needs: [syntax, legacy-unit]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require all cross-platform baseline checks
+        env:
+          SYNTAX_RESULT: ${{ needs.syntax.result }}
+          UNIT_RESULT: ${{ needs.legacy-unit.result }}
+        run: |
+          test "$SYNTAX_RESULT" = success
+          test "$UNIT_RESULT" = success
+      - name: Install declared dependencies without inherited stale lock
+        run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
+      - name: Verify public entry point imports
+        run: node --test test/bootstrap/api.contract.test.cjs
+      - name: Verify dry-run package contents without publishing
+        run: |
+          npm pack --dry-run --ignore-scripts --json > package-dry-run.json
+          node scripts/ci/check-package.cjs package-dry-run.json
+      - name: Preserve package metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-dry-run-ubuntu-node22
+          path: package-dry-run.json
+          if-no-files-found: warn
+          retention-days: 14
