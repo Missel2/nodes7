@@ -60,6 +60,9 @@ test('six repeated real COTP setup cancellations leave no live peer sockets', {t
         for(let i=0;i<6;i++){
             const packet = new Promise(resolve=>{nextRequest=resolve});
             const connecting=endpoint.connect();
+            // Register rejection handling BEFORE explicit disconnect, rather than
+            // after the promise has already rejected in the same event loop turn.
+            connecting.catch(() => {});
             const receiving=await deadline(packet,3000,'COTP request '+i);
             assert.equal(receiving.bytes.readUInt16BE(2),22);
             assert.equal(receiving.bytes[5],0xe0);
@@ -93,6 +96,9 @@ test('late custom transport resolution is destroyed after user cancellation', {t
     endpoint.on('connect',()=>connected++);
     endpoint.on('error',()=>{});
     const connecting=endpoint.connect();
+            // Register rejection handling BEFORE explicit disconnect, rather than
+            // after the promise has already rejected in the same event loop turn.
+            connecting.catch(() => {});
     await sleep(20); // lets the custom-transport Promise be registered
     const dis=await snapshotState(endpoint.disconnect(),600);
     const connectState=await snapshotState(connecting,250);
