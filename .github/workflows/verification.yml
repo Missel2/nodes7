@@ -48,10 +48,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      # Deliberate temporary exception: inherited package-lock v1 is stale (1.1.0 vs 1.1.2).
-      # This is NOT an npm-ci/reproducible-install claim. Fix in a separate lockfile PR.
-      - name: Install declared baseline dependencies without stale lock or lifecycle scripts
-        run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
+      - name: Verify lockfile v3 metadata and real negative controls
+        run: |
+          node scripts/ci/verify-lockfile.cjs
+          node scripts/ci/verify-lockfile.cjs --negative-control
+      - name: Reproducible install from committed lockfile (no lifecycle scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Assert npm ci did not rewrite locked dependency resolution
+        run: git diff --exit-code -- package-lock.json
       - name: Verify inherited date fixture timezone (UTC-03)
         run: node -e "for(const s of ['2019-11-12T21:02:16.709Z','2020-03-24T22:44:23.721Z']) if(new Date(s).getTimezoneOffset()!==180) throw Error('Expected fixed UTC-03 timezone for inherited fixtures')"
       - name: Run existing upstream unit tests
@@ -87,8 +91,14 @@ jobs:
         run: |
           test "$SYNTAX_RESULT" = success
           test "$UNIT_RESULT" = success
-      - name: Install declared dependencies without inherited stale lock
-        run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
+      - name: Verify lockfile metadata, integrity, and negative controls
+        run: |
+          node scripts/ci/verify-lockfile.cjs
+          node scripts/ci/verify-lockfile.cjs --negative-control
+      - name: Reproducible locked package installation
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify committed lockfile is immutable during package smoke
+        run: git diff --exit-code -- package-lock.json
       - name: Verify public entry point imports
         run: node --test test/bootstrap/api.contract.test.cjs
       - name: Verify dry-run package contents without publishing

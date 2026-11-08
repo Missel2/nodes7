@@ -30,3 +30,9 @@
 - Decide fork package identity, signed artifacts, SBOM and controlled release only after qualifying the CI and hardware boundaries.
 
 Every round begins with actual branches, PRs, CodeQL, required checks and current evidence. No auto-merge.
+
+## 2026-11-08 implementation update (not a release)
+
+- Bootstrap [PR #1](https://github.com/Missel2/nodes7/pull/1) passed hosted Windows/Linux checks and CodeQL, and was **human-approved, squash-merged** to `master` at `1cbacddd05cac82f5a70e14469bf21b901df6de1`. Ruleset `protect-master` is active with eight required status checks; Issues are enabled.
+- N7-002 [Issue #10](https://github.com/Missel2/nodes7/issues/10) / [draft PR #11](https://github.com/Missel2/nodes7/pull/11): verified v3 npm lockfile with unchanged 336 resolved package versions and cross-platform `npm ci`, unit, negative lockfile and CodeQL CI on implementation head `2812b7363a104ce164531b916bcef57f99c2b975`. Documentation-only follow-ups require rechecking CI on the final head. **No merge authorization** for #11 yet.
+- N7-003 socket-leak fix is next only after this independent lockfile work is completed and human-merged; HIL remains pending.

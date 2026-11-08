@@ -19,3 +19,11 @@ After first successful PR runs (not before check names exist):
 5. Confirm repository Settings > Security & analysis for CodeQL, secret scanning, Dependabot alerts and private vulnerability reporting. Workflow source does not enable every security feature. GitHub Actions itself was enabled by the owner.
 
 No connector permission for repository settings administration is assumed. These actions require the repository owner's UI and verification of the effective ruleset. Do not claim protection exists until GitHub confirms it.
+
+## Verified active settings after PR #1 (2026-11-08)
+
+- GitHub Issues are enabled.
+- Ruleset [protect-master #26809728](https://github.com/Missel2/nodes7/rules/26809728) is **active** for default `master`, 0 bypasses, no force pushes/deletions, PR-only merges, required conversation resolution, 0 formal second approvals and strict up-to-date status checks.
+- Eight GitHub Actions check contexts are required: four syntax, two inherited unit, one aggregate package baseline, and `Analyze (javascript-typescript)`. CodeQL and PR #1 were green on verified exact heads. No auto-merge.
+- The Security & Analysis UI switches (Dependabot alerts/security updates, private reporting, secret scanning, push protection) are **not accessible through the GitHub connector**, so their enabled status has **not been verified** through an authoritative API. Do not assert these are on solely based on the presence of `SECURITY.md` or `codeql.yml`.
+- N7-002 draft PR #11 makes `npm ci` and lockfile negative controls transitively required through existing status-check names. No additional ruleset context is necessary for this PR.

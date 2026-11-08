@@ -8,7 +8,7 @@
 4. **Separate assurance levels.** A parser unit test is not S7Comm wire coverage; a Snap7 server is not a Siemens firmware/CPU; HIL tests and production deployment are separate gates.
 5. **Traceable evidence.** Each PR states head SHA, exact commands, Ubuntu/Windows runtime, run URLs, fault injected, expected/observed outputs, artifact location and unsolved risks. Never report a skipped, timed-out harness, or suppressed exception as success.
 6. **Safe data handling.** Logs are bounded, actionable and free of plant addresses, data values and credentials. Tests may write only disposable loopback fixtures; physical PLC writes require a separate approved lab procedure.
-7. **Supply chain.** Existing GPL-3.0-or-later notices stay intact; new dependencies and imported patches need licensing and integrity review. `npm ci` is mandatory **after** a correct lockfile is independently generated and verified; it is **not** satisfied by this bootstrap.
+7. **Supply chain.** Existing GPL-3.0-or-later notices stay intact; new dependencies and imported patches need licensing and integrity review. `npm ci` is mandatory on both hosted operating systems once N7-002 is merged. Draft PR #11 implements the gate with manifest/integrity negative controls; until merged it is not a production-branch guarantee. Security-debt triage remains independent of package integrity.
 8. **Release safeguards.** No automatic merge, package publication, production deployment or untrusted public-PR execution on PLC-reachable runners.
 
 Priorities: connection teardown first; deterministic protocol/fault CI second; robustness, diagnostics and tested compatibility afterward.
