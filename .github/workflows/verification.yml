@@ -94,6 +94,8 @@ jobs:
         run: node scripts/ci/verify-cotp-baseline-red.cjs
       - name: Require same two tests to pass on candidate source
         run: node scripts/ci/verify-cotp-candidate-green.cjs
+      - name: Prove repeated TCP cleanup and late custom transport cancellation
+        run: node --test test/network/cotp-lifecycle-extra.test.cjs
       - name: Preserve separate original-red and candidate-green TCP evidence
         if: always()
         uses: actions/upload-artifact@v4
