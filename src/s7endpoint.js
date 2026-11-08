@@ -143,6 +143,10 @@ class S7Endpoint extends EventEmitter {
         this._connection = null;
         /** @type {Duplex} */
         this._transport = null;
+        /** @type {Duplex} */ 
+        this._pendingTransport = null;
+        this._connectTimeout = null;
+        this._connectGeneration = 0;
         this._pduSize = null;
         this._reconnectTimer = null;
         /** @type {boolean} */
@@ -167,27 +171,52 @@ class S7Endpoint extends EventEmitter {
         this._destroyConnection();
         this._destroyTransport();
 
-        /**
-         * Emitted when we start the connection process to the PLC
-         * @event S7Endpoint#connecting
-         */
-        process.nextTick(() => this.emit('connecting'));
-
+        // Each attempt owns its watchdog and TCP setup result. A late COTP
+        // confirmation from a cancelled attempt must never reconnect an endpoint.
+        const attempt = ++this._connectGeneration;
         this._connectionState = CONN_CONNECTING;
 
-        let race = Promise.race([
-            this._getTransport(),
-            new Promise((res, rej) => setTimeout(() => rej(new NodeS7Error('ERR_TIMEOUT', 'Timeout connecting to the transport')), 10000).unref())
-        ]);
+        process.nextTick(() => {
+            if (attempt === this._connectGeneration &&
+                this._connectionState === CONN_CONNECTING) {
+                this.emit('connecting');
+            }
+        });
 
-        race.then(transport => {
+        const watchdog = new Promise((resolve, reject) => {
+            this._connectTimeout = setTimeout(
+                () => reject(new NodeS7Error('ERR_TIMEOUT', 'Timeout connecting to the transport')),
+                10000
+            );
+            this._connectTimeout.unref();
+        });
+        const transportPromise = Promise.resolve().then(() => this._getTransport());
+
+        Promise.race([transportPromise, watchdog]).then(transport => {
+            if (attempt !== this._connectGeneration ||
+                this._connectionState !== CONN_CONNECTING ||
+                !this._shouldConnect) {
+                // External custom transports can complete after cancellation.
+                // Close their late stream; never promote it into the new session.
+                if (transport && typeof transport.destroy === 'function') transport.destroy();
+                return;
+            }
+            clearTimeout(this._connectTimeout);
+            this._connectTimeout = null;
+
             this._transport = transport;
             this._transport.on('error', e => this._onTransportError(e));
             this._transport.on('close', () => this._onTransportClose());
             this._transport.on('end', () => this._onTransportEnd());
             this._createS7Connection();
             this._connection.connect();
-        }).catch(e => this._onTransportError(e));
+        }).catch(e => {
+            if (attempt !== this._connectGeneration ||
+                this._connectionState !== CONN_CONNECTING) return;
+            clearTimeout(this._connectTimeout);
+            this._connectTimeout = null;
+            this._onTransportError(e);
+        });
     }
 
     /**
@@ -200,15 +229,33 @@ class S7Endpoint extends EventEmitter {
         debug("S7Endpoint _createIsoTransport");
 
         return new Promise((resolve, reject) => {
-            // handler to reject the promise on connection-time errors
-            const handleRejection = e => reject(e);
+            let stream;
+            const cleanup = () => {
+                if (this._pendingTransport === stream) this._pendingTransport = null;
+                stream.off('error', onError);
+                stream.off('close', onClose);
+            };
+            const onError = error => {
+                cleanup();
+                reject(error);
+            };
+            const onClose = () => {
+                cleanup();
+                reject(new NodeS7Error('ERR_CONNECTION_CLOSED',
+                    'Transport closed before ISO-on-TCP handshake completed'));
+            };
 
-            let stream = isoOnTcp.createConnection(this._connOptsTcp, () => {
-                stream.off('error', handleRejection);
+            stream = isoOnTcp.createConnection(this._connOptsTcp, () => {
+                cleanup();
                 resolve(stream);
             });
-            stream.on('error', handleRejection);
-        })
+
+            // This stream exists before the COTP handshake promise resolves.
+            // Retain ownership so timeout and disconnect can always destroy it.
+            this._pendingTransport = stream;
+            stream.once('error', onError);
+            stream.once('close', onClose);
+        });
     }
 
     /**
@@ -251,7 +298,19 @@ class S7Endpoint extends EventEmitter {
     _destroyTransport() {
         debug("S7Endpoint _destroyTransport");
 
-        //if we're destroying the transport, the connection must also die
+        // Invalidate pending .then/.catch callbacks, including custom-transport
+        // promises which cannot themselves be cancelled by this library.
+        this._connectGeneration++;
+        clearTimeout(this._connectTimeout);
+        this._connectTimeout = null;
+
+        const pending = this._pendingTransport;
+        this._pendingTransport = null;
+        if (pending && typeof pending.destroy === 'function') {
+            pending.destroy();
+        }
+
+        // If we're destroying the transport, the S7Connection must also die.
         this._destroyConnection();
 
         if (!this._transport) return;
@@ -298,11 +357,20 @@ class S7Endpoint extends EventEmitter {
     _disconnect() {
         debug("S7Endpoint _disconnect");
 
+        const wasConnecting = this._connectionState === CONN_CONNECTING;
         this._connectionState = CONN_DISCONNECTED;
+
+        if (wasConnecting) {
+            const hadEstablishedTransport = !!this._transport;
+            this._destroyTransport();
+            // During early COTP setup there is no established transport and
+            // therefore no close listener to emit 'disconnect' for callers.
+            if (!hadEstablishedTransport) this.emit('disconnect');
+            return;
+        }
 
         this._destroyConnection();
         this._closeTransport();
-
     }
 
     /**
@@ -428,15 +496,33 @@ class S7Endpoint extends EventEmitter {
             if (this._connectionState === CONN_CONNECTED) {
                 res();
             } else if (this._connectionState === CONN_DISCONNECTING) {
-                rej(new NodeS7Error('ERR_ILLEGAL_STATE', "Can't connect when connection state is 'DISCONNECTING' "))
+                rej(new NodeS7Error('ERR_ILLEGAL_STATE', "Can't connect when connection state is 'DISCONNECTING' "));
             } else {
-                this.once('connect', res);
-                this.once('error', rej);
+                // Attach one-shot listeners with cleanup so repeated failed
+                // connections do not leave stale completion callbacks.
+                const cleanup = () => {
+                    this.off('connect', onConnect);
+                    this.off('error', onError);
+                    this.off('disconnect', onDisconnect);
+                };
+                const onConnect = () => { cleanup(); res(); };
+                const onError = e => { cleanup(); rej(e); };
+                const onDisconnect = () => {
+                    // A failed transport already emits 'error' with the real
+                    // cause. Only an explicit user cancellation rejects here.
+                    if (!this._shouldConnect) {
+                        cleanup();
+                        rej(new NodeS7Error('ERR_CONNECTION_CLOSED',
+                            'Connection cancelled before it was established'));
+                    }
+                };
+                this.once('connect', onConnect);
+                this.once('error', onError);
+                this.once('disconnect', onDisconnect);
                 this._connect();
             }
         });
     }
-
 
     /**
      * Disconnects from the PLC. 

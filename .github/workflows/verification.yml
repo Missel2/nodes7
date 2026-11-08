@@ -73,9 +73,39 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  cotp-regression:
+    name: COTP source original-red and candidate-green (${{ matrix.os }}, Node 22)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install immutable dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Reproduce same two assertion failures on pinned original master source
+        run: node scripts/ci/verify-cotp-baseline-red.cjs
+      - name: Require same two tests to pass on candidate source
+        run: node scripts/ci/verify-cotp-candidate-green.cjs
+      - name: Preserve separate original-red and candidate-green TCP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: n7-003-cotp-red-green-${{ matrix.os }}-node22
+          path: test-reports/
+          retention-days: 14
+          if-no-files-found: warn
+
   package-smoke:
     name: Package baseline (Ubuntu, Node 22)
-    needs: [syntax, legacy-unit]
+    needs: [syntax, legacy-unit, cotp-regression]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -88,9 +118,11 @@ jobs:
         env:
           SYNTAX_RESULT: ${{ needs.syntax.result }}
           UNIT_RESULT: ${{ needs.legacy-unit.result }}
+          COTP_RESULT: ${{ needs.cotp-regression.result }}
         run: |
           test "$SYNTAX_RESULT" = success
           test "$UNIT_RESULT" = success
+          test "$COTP_RESULT" = success
       - name: Verify lockfile metadata, integrity, and negative controls
         run: |
           node scripts/ci/verify-lockfile.cjs

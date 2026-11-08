@@ -7,9 +7,26 @@ const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const root = path.resolve(__dirname, '../..'), out = path.join(root, 'test-reports');
 fs.mkdirSync(out, {recursive: true});
-const result = spawnSync(process.execPath, ['--test', '--test-reporter=tap', 'test/network/pending-cotp.test.cjs'], {
-    cwd: root, encoding: 'utf8', timeout: 40000
+const BASELINE_SHA = 'f201bcc0acdad4742e4066fa084577f23e396ce1';
+const temp = path.join(root, 'src', '.n7-003-original-s7endpoint.cjs');
+const git = spawnSync('git', ['show', BASELINE_SHA + ':src/s7endpoint.js'], {
+    cwd: root, encoding: 'utf8', timeout: 15000
 });
+if (git.error || git.status !== 0 || !git.stdout.includes('class S7Endpoint extends EventEmitter')) {
+    throw new Error('Cannot verify immutable original endpoint source: ' + git.stderr);
+}
+if (fs.existsSync(temp)) throw new Error('Refuse to overwrite pre-existing baseline source');
+let result;
+try {
+    fs.writeFileSync(temp, git.stdout, 'utf8');
+    result = spawnSync(process.execPath,
+        ['--test', '--test-reporter=tap', 'test/network/pending-cotp.test.cjs'], {
+        cwd: root, encoding: 'utf8', timeout: 40000,
+        env: {...process.env, N7_ENDPOINT_SOURCE: '../../src/.n7-003-original-s7endpoint.cjs'}
+    });
+} finally {
+    fs.rmSync(temp, {force: true});
+}
 const log = (result.stdout || '') + '\n' + (result.stderr || '');
 fs.writeFileSync(path.join(out, 'cotp-baseline-expected-red.tap'), log);
 if (result.error) throw result.error;
@@ -38,3 +55,9 @@ for(const name of ['cotp-early-disconnect.json', 'cotp-watchdog-timeout.json']) 
     }
 }
 process.stdout.write('BASELINE-RED: confirmed two specific client/peer socket defects on real fork source. NOT FIXED.\n');
+
+const target = path.join(out, 'baseline');
+fs.mkdirSync(target, {recursive: true});
+for (const name of ['cotp-early-disconnect.json','cotp-watchdog-timeout.json','cotp-baseline-expected-red.tap']) {
+    fs.renameSync(path.join(out, name), path.join(target, name));
+}
