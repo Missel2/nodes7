@@ -53,7 +53,8 @@ if (result.status !== 1 || absent.length ||
 for(const name of ['cotp-early-disconnect.json', 'cotp-watchdog-timeout.json']) {
     const data = JSON.parse(fs.readFileSync(path.join(out, name), 'utf8'));
     if (!data.observedBeforeFixtureCleanup || data.requestBytes < 22 || data.accepted !== 1 ||
-        data.hardware !== false || data.peerOpenBeforeFixtureCleanup !== 1) {
+        data.hardware !== false || data.peerOpenBeforeFixtureCleanup !== 1 ||
+        data.clientOpenHandlesBeforeFixtureCleanup !== 1) {
         throw new Error('Baseline evidence did not prove 22-byte COTP + open peer before fixture cleanup: '+name);
     }
 }

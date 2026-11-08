@@ -31,16 +31,19 @@ for (const name of ['cotp-early-disconnect.json', 'cotp-watchdog-timeout.json'])
     if (!fs.existsSync(evidencePath)) throw new Error('Missing candidate evidence: '+name);
     const data = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
     if (!data.observedBeforeFixtureCleanup || data.accepted !== 1 ||
-        data.requestBytes < 22 || data.peerOpenBeforeFixtureCleanup !== 0 ||
+        data.requestBytes !== 22 || data.peerOpenBeforeFixtureCleanup !== 0 ||
+        data.clientOpenHandlesBeforeFixtureCleanup !== 0 ||
         data.peerClosed.state !== 'fulfilled' || data.connectedEvents !== 0) {
         throw new Error('Candidate TCP cleanup was not proved by actual peer observation: '+name);
     }
     if (name==='cotp-early-disconnect.json' &&
-        (data.publicDisconnect.state!=='fulfilled' || data.connectionAttempt.state!=='rejected')) {
+        (data.publicDisconnect.state!=='fulfilled' || data.connectionAttempt.state!=='rejected' ||
+         data.connectionAttempt.code!=='ERR_CONNECTION_CLOSED')) {
         throw new Error('Early public connect/disconnect semantics not proved');
     }
     if (name==='cotp-watchdog-timeout.json' &&
-        (data.connect.state!=='rejected' || data.disconnect.state!=='fulfilled')) {
+        (data.connect.state!=='rejected' || data.connect.code!=='ERR_TIMEOUT' ||
+         data.disconnect.state!=='fulfilled')) {
         throw new Error('Native timeout and subsequent public disconnect semantics not proved');
     }
     fs.renameSync(evidencePath, path.join(target, name));

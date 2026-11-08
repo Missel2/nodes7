@@ -1,18 +1,22 @@
-# Development handoff — independent nodes7 fork
+# Development handoff — nodes7
 
-## Verified basis (2026-11-08)
-- CI/governance [PR #1](https://github.com/Missel2/nodes7/pull/1) human-approved and squash-merged `1cbacddd05cac82f5a70e14469bf21b901df6de1`.
-- Reproducible lockfile [N7-002 PR #11](https://github.com/Missel2/nodes7/pull/11) separately human-approved and squash-merged `f201bcc0acdad4742e4066fa084577f23e396ce1`. Full 336-package lock preserved all resolved versions, npm ci Ubuntu/Windows green, 9/9 checks; 57 legacy SHA-1 SRI entries remain future security debt. Protected `master`, eight required contexts, no bypass, no auto-merge.
-- No Siemens hardware tests and no production protocol implementation patch so far.
+## Completed (human-approved merges)
+- Governance/CI: [PR #1](https://github.com/Missel2/nodes7/pull/1) squash `1cbacddd05cac82f5a70e14469bf21b901df6de1`.
+- N7-002 reproducible npm lock: [PR #11](https://github.com/Missel2/nodes7/pull/11) squash `f201bcc0acdad4742e4066fa084577f23e396ce1` (336 identical package instances, real npm registry lockfile v3, Ubuntu/Windows `npm ci`, seven lock negative controls; original 57 SHA-1 SRI and old package vulnerabilities remain separate risk). Issue #10 closed.
+- Master is protected by active `protect-master` with eight required status checks, resolved threads, no bypass and no auto-merge. Never direct-push.
 
-## Active task N7-003
+## Current N7-003 (NOT MERGED)
+- Issue [#12](https://github.com/Missel2/nodes7/issues/12) and [draft PR #13](https://github.com/Missel2/nodes7/pull/13), branch `test/n7-003-cotp-pending-transport-red-20261108`. Master remains `f201bcc0...`.
+- Candidate modifies **only** `src/s7endpoint.js` runtime code: tracks pending TCP stream before ISO-on-TCP COTP completion, destroys it on error/timeout/manual disconnect, cancels connection watchdog, rejects cancelled public `connect()`, drops late transport results and avoids stale `connecting` event.
+- Original code is pinned by full immutable baseline SHA `f201bcc0...` and independently run against **the exact same two test cases**; only exact original-red and candidate-green results satisfy the cross-platform gate. Reports are archived before test peer socket teardown.
+- Extended CI runs on hosted Windows/Ubuntu Node 22 and includes real `python-snap7==3.3.1` synthetic DB1 S7Comm read/write/restart/abort/RST, plus six cancellation cycles and late custom-transport result destruction. The *required* existing aggregate package-smoke depends on **every** cross-platform protocol job.
+- Prior implementation head `a64123a7bd78ea29d913b39bbf57424b7446a7ca` passed [Verification 42518378160](https://github.com/Missel2/nodes7/actions/runs/42518378160) (11/11 jobs), [CodeQL 42518378259](https://github.com/Missel2/nodes7/actions/runs/42518378259) (1/1 job), 13/13 commit checks. Original client+peer = 1+1 open; candidate client+peer = 0+0 on both OSes. Six repeated COTP cancels per OS green. An initial CodeQL high `js/file-system-race` was FIXED with exclusive `wx` creation; no alerts bypassed.
+- **The last documentation/assertion commit must be separately verified on its own SHA; historical green checks do not suffice.** Review the complete diff and risk/rollback, then request **explicit new user permission** to merge PR #13. Do not merge automatically.
 
-Issue [#12](https://github.com/Missel2/nodes7/issues/12), development branch `test/n7-003-cotp-pending-transport-red-20261108`. Start by confirming actual direct-package failing TCP regression on this commit under Ubuntu/Windows. Two tests create disposable loopback TCP peers that actually receive a 22-byte RFC1006 COTP CR but deliberately withhold confirmation: early public disconnect and native ~10-second watchdog. Tests record peer/client socket state **before forced fixture cleanup** and explicitly fail correct cleanup assertions on original code. The temporary workflow considers only both named assertion failures a **successful diagnosis**; it does not assert the defect is fixed. Run and inspect actual CI logs/artifacts before citing success.
+## Remaining
+- Physical Siemens S7-1200 HIL (HIL-S7-001..007) all `PENDING_HARDWARE`. Synthetic Snap7 is not Siemens firmware. No production OT or physical writes.
+- Real late COTP handshake confirmation race after cancellation still needs independent targeted coverage; customTransport late fulfillment is tested but is a distinct case.
+- N7-006 old dependency security triage; N7-009 timezone-independent S7 DT/DTL semantics; further fault duration/soak work. CI status does not mean industrial safety certification.
+- Only **after** a human-approved nodes7 fix merge: independently pin revised dependency in `Missel2/node-red-contrib-s7`, rerun the wrapper's ten original-red/corrected-green lifecycle tests and wire protocol CI, and obtain separate approval for its PR. No npm publish until identity/license/release decision.
 
-Next: preserve first exact-head Windows/Linux original-red proof, then develop a **minimal real `src/s7endpoint.js` fix** in a follow-on commit on this PR or a separate PR, while retaining immutable original source test as the red counterexample and identical repaired source as green. Add late-handshake and RST scenarios and repeated cycles; preserve real S7Comm read/write and restart. Keep HIL-S7-001/-005 `PENDING_HARDWARE`.
-
-**No direct push to `master`, no additional merge without human approval, no npm publication, production OT deployment, real PLC access or plant writes.** Test evidence is not a Siemens firmware/PLC compatibility claim.
-
-## Runtime candidate stage (not merged)
-
-After both hosted original-red jobs passed on test-only commit `ad5aba8896efc0e6fbce6b7ad538cba07fc342a9`, the same draft PR now contains a candidate source change. `_pendingTransport` owns the ISO-on-TCP stream during setup, `_connectGeneration` rejects stale late promises, the watchdog is cancelled with each attempt, and explicit disconnect emits the required signal during pending setup. The same two tests are executed against immutable original source and real candidate source, enforced by the protected aggregate job on both Windows/Linux. **Do not claim this candidate fixed the defect until exact-head CI and artifacts confirm it.** Additional TCP RST, late handshake and repeated reconnection coverage remains necessary. HIL-S7-001/-005 PENDING_HARDWARE; public API and normal S7Conn unit tests must remain green.
+**No automatic merges, direct pushes to master, package publishing, cluster sync or production deployments.** Every subsequent PR has its own approval gate.
