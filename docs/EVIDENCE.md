@@ -17,3 +17,7 @@
 **Not recorded as green until new workflow runs complete on the exact head.** Update this section during review with commit SHA, run URLs, number of checks, failures and open limitations. Only syntax, inherited unit tests, API import and package dry-run are in scope; no actual S7Comm network fixture or HIL is executed by this bootstrap. A correctly versioned lockfile is **not** in this PR.
 
 No npm publication, deployment, actual PLC activity or safety certification has occurred.
+
+## Initial exact-head CI failure (before fixture timezone correction)
+
+Workflow [42513382879](https://github.com/Missel2/nodes7/actions/runs/42513382879), head `fdf4bf3f1d465b6ea4ac93af5dd05e3f9646fbf2`: all four syntax/negative-control matrix jobs succeeded. Both Windows and Ubuntu Node 22 unit jobs produced **237 passing and four failing DT/DTL date conversions**, solely because the historical fixtures expected UTC-03 while the initial workflow set UTC. The job preserved coverage artifacts. This is not evidence of a code fix; see `docs/TEST_STRATEGY.md` and N7-009. Follow-up commit pins an explicit checked fixture timezone and requires fresh exact-head CI.

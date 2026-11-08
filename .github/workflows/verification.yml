@@ -40,7 +40,9 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2025]
     env:
-      TZ: UTC
+      # Historical upstream date fixtures assume UTC-03, without documenting it.
+      # Pin the fixture timezone, not the production conversion behavior.
+      TZ: America/Sao_Paulo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,6 +52,8 @@ jobs:
       # This is NOT an npm-ci/reproducible-install claim. Fix in a separate lockfile PR.
       - name: Install declared baseline dependencies without stale lock or lifecycle scripts
         run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
+      - name: Verify inherited date fixture timezone (UTC-03)
+        run: node -e "for(const s of ['2019-11-12T21:02:16.709Z','2020-03-24T22:44:23.721Z']) if(new Date(s).getTimezoneOffset()!==180) throw Error('Expected fixed UTC-03 timezone for inherited fixtures')"
       - name: Run existing upstream unit tests
         run: npm test
       - name: Verify exported public API contract (read-only)

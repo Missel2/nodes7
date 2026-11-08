@@ -10,5 +10,6 @@
 | N7-006 | P1 | Security/Dependency review | CodeQL evidence, release-vuln triage, safely updated dependencies | TODO |
 | N7-007 | P2H | S7-1200 HIL bench | Named CPU/firmware/program/SHA, trusted-runner gating, safe procedure | PENDING_HARDWARE |
 | N7-008 | P1 | Independent upstream fault/packet fixes | Reproducible own regression per candidate PR, no broad speculative merges | TODO |
+| N7-009 | P1 | Define timezone-independent DT/DTL tests | Proven date read/write contract in multiple timezones without modifying meaning of values | TODO; legacy fixture assumes UTC-03 |
 
 Cross-repo sources: [node-red-contrib-s7 Issue #2](https://github.com/Missel2/node-red-contrib-s7/issues/2), [PR #10](https://github.com/Missel2/node-red-contrib-s7/pull/10), [PR #13](https://github.com/Missel2/node-red-contrib-s7/pull/13). Create actual issues when the fork's Issues setting is enabled; do not create duplicate or overlapping work.
