@@ -37,3 +37,10 @@ Every round begins with actual branches, PRs, CodeQL, required checks and curren
 - N7-002 [Issue #10](https://github.com/Missel2/nodes7/issues/10) / [PR #11](https://github.com/Missel2/nodes7/pull/11): exact registry-backed v3 lockfile with all 336 resolved package versions unchanged, successful Ubuntu/Windows `npm ci`, seven negative controls, **explicitly human-approved/squash-merged** to `f201bcc0acdad4742e4066fa084577f23e396ce1`. Issue #10 closed.
 - N7-003 [Issue #12](https://github.com/Missel2/nodes7/issues/12) / [draft PR #13](https://github.com/Missel2/nodes7/pull/13): actual fork source original-red/candidate-green, source-level pending stream ownership fix, six-cycle cleanup, real synthetic S7Comm read/write/restart/RST on both hosted OSes and CodeQL. Prior implementation head had 13/13 green checks. **Unmerged**, pending exact final-head checks, risk review and explicit human permission.
 - True late COTP CC timing, long-duration soak, physical Siemens HIL and downstream wrapper dependency integration are **not** completed.
+
+
+### N7-003 COTP asynchronous-confirmation gap closed in hosted CI (2026-11-08)
+
+- Added actual `ISOOnTCPParser`-validated 22-byte CC TPDU timing tests on disposable TCP loopback, with deterministic cancellation *after* CC parse but *before* ISO client's queued `connect` callback. Verified that the callback still executes after cancel but cannot resurrect endpoint/S7Conn; 0 client/peer socket handles before fixture cleanup, no false public events.
+- A separately queued-CC-before-disconnect case verifies cancellation regardless of whether TCP delivers the queued bytes after destruction; **do not claim post-destruction delivery**.
+- Prior implementation head `ae8420dde11e2cf4f34e95ce23d5f4c45cc36b3a` passed [Verification 42519777698](https://github.com/Missel2/nodes7/actions/runs/42519777698) and [CodeQL 42519777739](https://github.com/Missel2/nodes7/actions/runs/42519777739) (13 checks successful). Final documentation/head must be checked again before recommending separate human approval. Remains draft/unmerged; HIL and long-duration testing still open.

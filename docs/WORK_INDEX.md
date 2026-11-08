@@ -4,7 +4,7 @@
 | --- | --- | --- | --- | --- |
 | N7-001 | P0 | CI/governance bootstrap | [PR #1](https://github.com/Missel2/nodes7/pull/1), 9 green checks | MERGED to master 1cbacddd |
 | N7-002 | P0 | Rebuild inherited stale npm lockfile | [Issue #10](https://github.com/Missel2/nodes7/issues/10), [PR #11](https://github.com/Missel2/nodes7/pull/11), Windows/Linux `npm ci`, 9 green checks | MERGED to master f201bcc0 |
-| N7-003 | P0 | COTP pending-handshake socket leak | [Issue #12](https://github.com/Missel2/nodes7/issues/12), [draft PR #13](https://github.com/Missel2/nodes7/pull/13); 2 original-red/2 candidate-green + 6 cancellation cycles + real S7Comm under both OS | IN_REVIEW; prior candidate CI green, final documentation/strengthened assertions require exact-head CI; no merge permission |
+| N7-003 | P0 | COTP pending-handshake socket leak | [Issue #12](https://github.com/Missel2/nodes7/issues/12), [draft PR #13](https://github.com/Missel2/nodes7/pull/13); original-red/candidate-green, 6 cycles, **parsed real CC + delayed callback**, real S7Comm across OS | IN_REVIEW; implementation head ae8420d all 13 checks green, final documentation head requires fresh CI; separate human merge approval required |
 | N7-004 | P1 | Disposable wire protocol CI | S7Comm connect, typed DB read, synthetic DB write/readback, restart, RST and blackhole on Ubuntu/Windows | IMPLEMENTED/CI-GREEN in draft PR #13; not yet on master |
 | N7-005 | P1 | ESLint/format checks and diagnostic type baseline | Protected quality gate plus independently observed negative control | TODO |
 | N7-006 | P1 | Security/Dependency review | CodeQL evidence, release-vuln triage, safely updated dependencies | TODO |
