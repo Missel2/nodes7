@@ -27,8 +27,3 @@ jobs:
           languages: javascript-typescript
           queries: security-extended
       - uses: github/codeql-action/analyze@v3
-        with:
-          output: codeql-results
-      - name: Report concise CodeQL findings from local SARIF (diagnostic only)
-        if: always()
-        run: node scripts/ci/report-codeql-sarif.cjs codeql-results

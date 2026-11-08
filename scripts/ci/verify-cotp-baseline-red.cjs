@@ -15,17 +15,20 @@ const git = spawnSync('git', ['show', BASELINE_SHA + ':src/s7endpoint.js'], {
 if (git.error || git.status !== 0 || !git.stdout.includes('class S7Endpoint extends EventEmitter')) {
     throw new Error('Cannot verify immutable original endpoint source: ' + git.stderr);
 }
-if (fs.existsSync(temp)) throw new Error('Refuse to overwrite pre-existing baseline source');
 let result;
+let created = false;
 try {
-    fs.writeFileSync(temp, git.stdout, 'utf8');
+    // Atomic exclusive creation, not a check-then-write race. Never overwrite
+    // or delete a file we did not create (GitHub CodeQL js/file-system-race).
+    fs.writeFileSync(temp, git.stdout, {encoding: 'utf8', flag: 'wx', mode: 0o600});
+    created = true;
     result = spawnSync(process.execPath,
         ['--test', '--test-reporter=tap', 'test/network/pending-cotp.test.cjs'], {
         cwd: root, encoding: 'utf8', timeout: 40000,
         env: {...process.env, N7_ENDPOINT_SOURCE: '../../src/.n7-003-original-s7endpoint.cjs'}
     });
 } finally {
-    fs.rmSync(temp, {force: true});
+    if (created) fs.rmSync(temp, {force: true});
 }
 const log = (result.stdout || '') + '\n' + (result.stderr || '');
 fs.writeFileSync(path.join(out, 'cotp-baseline-expected-red.tap'), log);
