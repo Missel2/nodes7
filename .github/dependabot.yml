@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # Start with reviewable workflow updates only. npm updates remain a separate
+  # decision until the inherited stale v1 lockfile is repaired and npm ci is a gate.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]

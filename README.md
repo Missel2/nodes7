@@ -1,3 +1,7 @@
+> **Independent development fork:** This is [Missel2/nodes7](https://github.com/Missel2/nodes7), based on [st-one-io/nodes7](https://github.com/st-one-io/nodes7). Original authorship, Git history and GPL-3.0-or-later license are retained. It has no separately published, validated release. It is not a Siemens product or safety certification. Read [engineering rules](AGENTS.md), [test strategy](docs/TEST_STRATEGY.md), [evidence](docs/EVIDENCE.md) and [work index](docs/WORK_INDEX.md). The package name in `package.json` still belongs to upstream; npm installation of that name does **not** install this fork.
+
+---
+
 # nodes7
 
 NodeS7 is a library that allows communication to S7-200/300/400/1200/1500 PLCs using the Siemens S7Communication protocol over ISO-on-TCP (RFC1006) or MPI/PPI/DP USB Adapters.
