@@ -66,3 +66,17 @@ Final candidate source is still in a **draft PR** and has **not been merged**. E
 - **Remaining risk:** true industrial Siemens firmware/HIL untested, extended duration and unusual network timing not exhaustively covered, visible public `connect()` cancellation rejection is a breaking behavioral change for consumers that relied on the old unresolved promise. No npm publish or Node-RED wrapper integration. A separate maintainer approval is still needed to merge PR #13.
 
 The documentation update above creates a **new commit**; only final exact-head CI on that new SHA authorizes describing this PR as fully green for human review. Do not auto-merge.
+
+## N7-010 post-destroy queue admission (2026-11-09)
+
+Baseline `2cf864e38be447c2709348a25eb0524d67f5cf2d`; issue #14.
+Test-only commit `a1bed12` preserves the unchanged runtime and adds one regression
+in `test/s7/s7connection.spec.js`. On Linux Node v24.22.1,
+`./node_modules/.bin/mocha --grep 'post-destroy' test/s7/s7connection.spec.js`
+fails exactly the queue assertion (actual 1, expected 0) after the expected
+`ERR_ILLEGAL_STATE` rejection. The same test passes with one early return after
+that rejection. It checks 32 rejected requests, zero retained jobs and zero bytes.
+`TZ=America/Sao_Paulo npm test` then passes 242 tests. No original assertion was
+weakened. These are local in-memory tests, not Windows, wire or hardware proof.
+Hosted exact-head CI remains required; see the linked PR for its eventual result.
+HIL: not applicable to post-destroy in-memory queue admission. No release.

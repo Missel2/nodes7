@@ -381,6 +381,7 @@ class S7Connection extends EventEmitter {
 
             if (this._connectionState > CONN_CONNECTED) {
                 rej(new NodeS7Error('ERR_ILLEGAL_STATE', "Not connected"));
+                return;
             }
 
             this._jobQueue.push({
