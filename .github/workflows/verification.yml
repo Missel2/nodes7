@@ -73,9 +73,74 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  cotp-regression:
+    name: COTP source original-red and candidate-green (${{ matrix.os }}, Node 22)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install immutable dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Reproduce same two assertion failures on pinned original master source
+        run: node scripts/ci/verify-cotp-baseline-red.cjs
+      - name: Require same two tests to pass on candidate source
+        run: node scripts/ci/verify-cotp-candidate-green.cjs
+      - name: Prove repeated TCP cleanup and late custom transport cancellation
+        run: node --test test/network/cotp-lifecycle-extra.test.cjs
+      - name: Prove actual 22-byte COTP CC queued and callback-after-cancel race
+        run: node --test test/network/cotp-cc-race.test.cjs
+      - name: Preserve separate original-red and candidate-green TCP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: n7-003-cotp-red-green-${{ matrix.os }}-node22
+          path: test-reports/
+          retention-days: 14
+          if-no-files-found: warn
+
+  wire-protocol:
+    name: S7Comm loopback protocol and network faults (${{ matrix.os }}, Node 22)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned disposable S7Comm server and immutable npm dependencies
+        run: |
+          python -m pip install --disable-pip-version-check python-snap7==3.3.1
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Exercise actual COTP and classic S7Comm on disposable TCP loopback
+        run: node --test test/protocol/*.test.js
+      - name: Preserve synthetic DB write/readback, restart and RST evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: n7-003-s7-wire-${{ matrix.os }}-node22
+          path: test-reports/s7-*
+          retention-days: 14
+          if-no-files-found: warn
+
   package-smoke:
     name: Package baseline (Ubuntu, Node 22)
-    needs: [syntax, legacy-unit]
+    needs: [syntax, legacy-unit, cotp-regression, wire-protocol]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -88,9 +153,13 @@ jobs:
         env:
           SYNTAX_RESULT: ${{ needs.syntax.result }}
           UNIT_RESULT: ${{ needs.legacy-unit.result }}
+          COTP_RESULT: ${{ needs.cotp-regression.result }}
+          WIRE_RESULT: ${{ needs.wire-protocol.result }}
         run: |
           test "$SYNTAX_RESULT" = success
           test "$UNIT_RESULT" = success
+          test "$COTP_RESULT" = success
+          test "$WIRE_RESULT" = success
       - name: Verify lockfile metadata, integrity, and negative controls
         run: |
           node scripts/ci/verify-lockfile.cjs
