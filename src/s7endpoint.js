@@ -533,8 +533,11 @@ class S7Endpoint extends EventEmitter {
 
         return new Promise((res, rej) => {
             this._shouldConnect = false;
+            // Teardown at the start of a connection can have armed a retry
+            // while the COTP stream is still pending.
+            clearTimeout(this._reconnectTimer);
+            this._reconnectTimer = null;
             if (this._connectionState === CONN_DISCONNECTED) {
-                clearTimeout(this._reconnectTimer);
                 res();
             } else {
                 this.once('disconnect', res);
