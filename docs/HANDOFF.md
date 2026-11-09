@@ -1,22 +1,19 @@
-# Development handoff — nodes7
+# Current development handoff
 
-## Completed (human-approved merges)
-- Governance/CI: [PR #1](https://github.com/Missel2/nodes7/pull/1) squash `1cbacddd05cac82f5a70e14469bf21b901df6de1`.
-- N7-002 reproducible npm lock: [PR #11](https://github.com/Missel2/nodes7/pull/11) squash `f201bcc0acdad4742e4066fa084577f23e396ce1` (336 identical package instances, real npm registry lockfile v3, Ubuntu/Windows `npm ci`, seven lock negative controls; original 57 SHA-1 SRI and old package vulnerabilities remain separate risk). Issue #10 closed.
-- Master is protected by active `protect-master` with eight required status checks, resolved threads, no bypass and no auto-merge. Never direct-push.
+**Verified repository snapshot: 2026-11-09; baseline `2cf864e38be447c2709348a25eb0524d67f5cf2d`.** PR #13 is merged: pending COTP transport cancellation and software wire tests are on master. The wrapper pins this exact source archive through its merged PR #15. This is software evidence, not a published fork release or physical Siemens qualification.
 
-## Current N7-003 (NOT MERGED)
-- Issue [#12](https://github.com/Missel2/nodes7/issues/12) and [draft PR #13](https://github.com/Missel2/nodes7/pull/13), branch `test/n7-003-cotp-pending-transport-red-20261108`. Master remains `f201bcc0...`.
-- Candidate modifies **only** `src/s7endpoint.js` runtime code: tracks pending TCP stream before ISO-on-TCP COTP completion, destroys it on error/timeout/manual disconnect, cancels connection watchdog, rejects cancelled public `connect()`, drops late transport results and avoids stale `connecting` event.
-- Original code is pinned by full immutable baseline SHA `f201bcc0...` and independently run against **the exact same two test cases**; only exact original-red and candidate-green results satisfy the cross-platform gate. Reports are archived before test peer socket teardown.
-- Extended CI runs on hosted Windows/Ubuntu Node 22 and includes real `python-snap7==3.3.1` synthetic DB1 S7Comm read/write/restart/abort/RST, plus six cancellation cycles and late custom-transport result destruction. The *required* existing aggregate package-smoke depends on **every** cross-platform protocol job.
-- Prior implementation head `a64123a7bd78ea29d913b39bbf57424b7446a7ca` passed [Verification 42518378160](https://github.com/Missel2/nodes7/actions/runs/42518378160) (11/11 jobs), [CodeQL 42518378259](https://github.com/Missel2/nodes7/actions/runs/42518378259) (1/1 job), 13/13 commit checks. Original client+peer = 1+1 open; candidate client+peer = 0+0 on both OSes. Six repeated COTP cancels per OS green. An initial CodeQL high `js/file-system-race` was FIXED with exclusive `wx` creation; no alerts bypassed.
-- The `ae8420dde11e2cf4f34e95ce23d5f4c45cc36b3a` implementation head passed all **13/13** check runs. **This evidence-only documentation commit changes the head; reverify exact-head CI before requesting a separate explicit approval for PR #13.** A green implementation does not authorize an automatic merge.
 
-## Remaining
-- Physical Siemens S7-1200 HIL (HIL-S7-001..007) all `PENDING_HARDWARE`. Synthetic Snap7 is not Siemens firmware. No production OT or physical writes.
-- N7-003 added a **real parsed 22-byte COTP CC callback race** in `test/network/cotp-cc-race.test.cjs`: `raw-message` decoding is confirmed, the endpoint disconnects, and the underlying ISO-on-TCP client's already-queued `connect` callback fires afterward without reviving S7Conn. On Ubuntu and Windows, all 0+0 socket counts and strict event counts passed. Evidence: Verification run `42519777698` / CodeQL `42519777739`, head `ae8420dde11e2cf4f34e95ce23d5f4c45cc36b3a`, Ubuntu artifact `13632628121`, Windows artifact `13632633246`. Separate queued-CC-before-disconnect test verifies safe cleanup without claiming delivery after socket close.
-- N7-006 old dependency security triage; N7-009 timezone-independent S7 DT/DTL semantics; further fault duration/soak work. CI status does not mean industrial safety certification.
-- Only **after** a human-approved nodes7 fix merge: independently pin revised dependency in `Missel2/node-red-contrib-s7`, rerun the wrapper's ten original-red/corrected-green lifecycle tests and wire protocol CI, and obtain separate approval for its PR. No npm publish until identity/license/release decision.
+Start with [WORK_INDEX](WORK_INDEX.md), [PROJECT_REVIEW](PROJECT_REVIEW.md) and
+[shared issue #21](https://github.com/Missel2/node-red-contrib-s7/issues/21). Do not resume an old unmerged-PR instruction
+from the historical notes below without checking GitHub.
 
-**No automatic merges, direct pushes to master, package publishing, cluster sync or production deployments.** Every subsequent PR has its own approval gate.
+1. Inspect nodes7 PR #18's exact-head CI/reviews. Its one-line runtime fix is separate
+   from the documentation review and is not yet in the wrapper dependency.
+2. Continue wrapper PR #11 and nodes7 #15 dependency triage; reuse existing PRs.
+3. Begin the real Node-RED runtime/package contract (#18 in the wrapper) once current
+   work is resolved. Write/fault qualification follows the shared dependency order.
+
+No merge or release is authorized by this handoff. HIL remains PENDING_HARDWARE.
+The documentation changes in this review require their own exact-head CI.
+
+Earlier continuation notes remain available in Git history and the revision-labelled [evidence ledger](EVIDENCE.md).

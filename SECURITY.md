@@ -6,4 +6,4 @@ Please use GitHub private vulnerability reporting for this repository **if the f
 
 Changes require reproducible tests and explicit maintainer review. No public CI job is allowed to reach a real PLC. Security and quality check success is not Siemens compatibility, safety certification, or authorization to deploy to OT systems. Upstream and dependencies retain their own separate maintenance responsibility.
 
-Dependencies, security alerts and lockfile integrity must be triaged. The inherited `package-lock.json` is currently stale and does not establish a trusted, reproducible `npm ci` build. See `docs/WORK_INDEX.md`.
+Dependencies, security alerts and lockfile integrity must be triaged. The v3 lockfile and hosted `npm ci` were established by merged PR #11. Reproducibility does not resolve inherited development-tool advisories; issue #15 tracks exposure and remediation. See `docs/WORK_INDEX.md`.

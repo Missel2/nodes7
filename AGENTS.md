@@ -22,8 +22,11 @@ Use one well-scoped fault, a failing baseline regression, a minimal patch, and a
 
 Every PR identifies applicable `HIL-S7-*` cases from `docs/HIL_TEST_MATRIX.md`, or states `HIL: not applicable` and why. All are **PENDING_HARDWARE**, not waived. No public PR code may run on a hardware-reachable runner. Real test writes require isolated physical S7-1200, authorized scratch DB, approved commit, human operator and explicit safe-write authorization.
 
-## Baseline / first P0
+## Current baseline and continuation
 
-Forked from upstream `ec89d6b8c7b71fbc83c308c44bbcb6d078998201` (package `@st-one-io/nodes7@1.1.2`). The sibling wrapper's [Issue #2](https://github.com/Missel2/node-red-contrib-s7/issues/2) records a **reproduced, unfixed** socket remaining open after a blackholed COTP setup and public disconnect. Its [PR #10](https://github.com/Missel2/node-red-contrib-s7/pull/10) and [PR #13](https://github.com/Missel2/node-red-contrib-s7/pull/13) provide test-only evidence; import/adapt these tests in a separate PR before fixing production transport code. Neither this bootstrap nor a green historical characterization establishes leak-free teardown.
-
-PR #1 (governance/CI only) was explicitly approved and merged as `1cbacddd`; N7-002 PR #11 (locked dependencies) separately approved and merged as `f201bcc0`. Draft N7-003 PR #13 contains the first **unmerged** S7 runtime fix plus immutable same-test original-red/candidate-green and real synthetic S7Comm protocol tests. An explicit separate human approval is required before any merge of PR #13. No physical Siemens hardware tests or releases have occurred.
+At the 2026-11-09 review, master is `2cf864e38be447c2709348a25eb0524d67f5cf2d`: #1 governance,
+#11 lockfile and #13 COTP cancellation are merged. The wrapper pins that source
+through its own merged #15. Earlier DRAFT/UNMERGED notes are historical.
+Read `docs/PROJECT_REVIEW.md` and the current work index. Queue admission issue #14
+has separate unmerged PR #18; dependency triage is #15, protocol qualification #16,
+timezone contracts #17. Each PR still needs explicit human merge approval.

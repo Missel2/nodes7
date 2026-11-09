@@ -1,15 +1,24 @@
-# Work index (GitHub Issues now enabled)
+# Work index
 
-| ID | Priority | Work | Exit evidence | State at fork/bootstrap |
-| --- | --- | --- | --- | --- |
-| N7-001 | P0 | CI/governance bootstrap | [PR #1](https://github.com/Missel2/nodes7/pull/1), 9 green checks | MERGED to master 1cbacddd |
-| N7-002 | P0 | Rebuild inherited stale npm lockfile | [Issue #10](https://github.com/Missel2/nodes7/issues/10), [PR #11](https://github.com/Missel2/nodes7/pull/11), Windows/Linux `npm ci`, 9 green checks | MERGED to master f201bcc0 |
-| N7-003 | P0 | COTP pending-handshake socket leak | [Issue #12](https://github.com/Missel2/nodes7/issues/12), [draft PR #13](https://github.com/Missel2/nodes7/pull/13); original-red/candidate-green, 6 cycles, **parsed real CC + delayed callback**, real S7Comm across OS | IN_REVIEW; implementation head ae8420d all 13 checks green, final documentation head requires fresh CI; separate human merge approval required |
-| N7-004 | P1 | Disposable wire protocol CI | S7Comm connect, typed DB read, synthetic DB write/readback, restart, RST and blackhole on Ubuntu/Windows | IMPLEMENTED/CI-GREEN in draft PR #13; not yet on master |
-| N7-005 | P1 | ESLint/format checks and diagnostic type baseline | Protected quality gate plus independently observed negative control | TODO |
-| N7-006 | P1 | Security/Dependency review | CodeQL evidence, release-vuln triage, safely updated dependencies | TODO |
-| N7-007 | P2H | S7-1200 HIL bench | Named CPU/firmware/program/SHA, trusted-runner gating, safe procedure | PENDING_HARDWARE |
-| N7-008 | P1 | Independent upstream fault/packet fixes | Reproducible own regression per candidate PR, no broad speculative merges | TODO |
-| N7-009 | P1 | Define timezone-independent DT/DTL tests | Proven date read/write contract in multiple timezones without modifying meaning of values | TODO; legacy fixture assumes UTC-03 |
+**Verified repository snapshot: 2026-11-09; baseline `2cf864e38be447c2709348a25eb0524d67f5cf2d`.** PR #13 is merged: pending COTP transport cancellation and software wire tests are on master. The wrapper pins this exact source archive through its merged PR #15. This is software evidence, not a published fork release or physical Siemens qualification.
 
-Cross-repo sources: [node-red-contrib-s7 Issue #2](https://github.com/Missel2/node-red-contrib-s7/issues/2), [PR #10](https://github.com/Missel2/node-red-contrib-s7/pull/10), [PR #13](https://github.com/Missel2/node-red-contrib-s7/pull/13). Issues are enabled. N7-002 Issue #10 is closed/completed; N7-003 is Issue #12 with PR #13. Other work remains unmerged and must not be represented as deployed or hardware-tested.
+
+Shared execution order and release checklist: [ecosystem roadmap issue #21](https://github.com/Missel2/node-red-contrib-s7/issues/21).
+[Repository review](PROJECT_REVIEW.md) explains findings, evidence and review limits.
+
+| Work | State | Next evidence |
+| --- | --- | --- |
+| N7-001 / N7-002: governance and locked install | Merged #1 / #11 | Maintain existing protected checks |
+| N7-003 / N7-004: COTP cancellation and wire tests | Merged #13; software verified | Extended faults remain #16; HIL pending |
+| N7-010: rejected requests retained after destroy | [Issue #14](https://github.com/Missel2/nodes7/issues/14), [PR #18](https://github.com/Missel2/nodes7/pull/18), unmerged | Same-test red/green; exact-head Windows/Linux and CodeQL |
+| N7-005 / N7-006: scoped quality and dependency review | [Issue #15](https://github.com/Missel2/nodes7/issues/15) | Triage existing Dependabot #2–#9; distinguish runtime/tooling exposure |
+| N7-008 / N7-011: protocol boundaries and endurance | [Issue #16](https://github.com/Missel2/nodes7/issues/16) | Replayable faults, independent byte vectors, measured bounded recovery |
+| N7-009: date semantics | [Issue #17](https://github.com/Missel2/nodes7/issues/17) | Explicit local/UTC contract, cross-zone vectors |
+| N7-007: physical S7-1200 | [Shared bench](https://github.com/Missel2/node-red-contrib-s7/issues/8) | PENDING_HARDWARE |
+
+## Continuation
+
+Check live branches, PRs, review threads and exact-commit CI before changing status.
+A merged library change does not update the wrapper's immutable dependency pin.
+Keep at most three implementation workstreams active. Never replace pending or
+expired evidence with assumed success. No automatic merge, release or hardware access.

@@ -6,7 +6,7 @@
 
 **Direct runtime dependency:** `iso-on-tcp`, declared by upstream `package.json`. After the N7-002 human-approved merge, the direct runtime `iso-on-tcp@0.1.0` and all 336 resolved package instances remain pinned without version change in a real v3 lockfile. This is NOT a security audit or an endorsement of old transitive packages; do not copy code from unrelated forks before an explicit license audit.
 
-**Downstream integration:** [Missel2/node-red-contrib-s7](https://github.com/Missel2/node-red-contrib-s7) currently installs `@st-one-io/nodes7@1.1.2`. This fork does **not** automatically replace the npm dependency merely because GitHub fork exists.
+**Downstream integration:** [Missel2/node-red-contrib-s7](https://github.com/Missel2/node-red-contrib-s7) pins this fork at `2cf864e38be447c2709348a25eb0524d67f5cf2d` through its merged PR #15, using the inherited package key and a SHA-512-locked source archive. Further library merges do not automatically update that pin.
 
 We thank ST-One, Guilherme Francescon, the nodes7/nodeS7 contributors and the Node-RED community. Credits do not imply association, endorsement or industrial certification. Preserve the GPL license, notices and source availability when distributing modifications. AI contributions are disclosed in each PR; final high-impact decisions belong to the human maintainer.
 

@@ -1,3 +1,10 @@
+**Verified repository snapshot: 2026-11-09; baseline `2cf864e38be447c2709348a25eb0524d67f5cf2d`.** PR #13 is merged: pending COTP transport cancellation and software wire tests are on master. The wrapper pins this exact source archive through its merged PR #15. This is software evidence, not a published fork release or physical Siemens qualification.
+
+Current navigation: [work index](WORK_INDEX.md), [review](PROJECT_REVIEW.md).
+Historical sections below retain the status of their named revision; they do not override this snapshot.
+
+---
+
 # Test strategy and confidence levels
 
 | Layer | Environment | Evidence | What it does not prove |
