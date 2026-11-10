@@ -82,3 +82,29 @@ The documentation update above creates a **new commit**; only final exact-head C
 - **One actual S7Endpoint, autoReconnect=2500ms, real COTP and software S7Comm:** (A) pending 22-byte COTP CR is intentionally blackholed; verify a retry was armed, public `disconnect()` closes the socket, one TCP accept only and zero peer sockets even after the retry interval. (B) later public `connect()` on the **same endpoint** establishes S7Comm and reads synthetic `DB1,REAL0` = `12.5`. (C) software server is externally terminated: detect disconnected state; observe at least one real `ECONNREFUSED` during the configured auto-retry interval with **no manual connect/disconnect call**. Restart fixture; endpoint independently reconnects and reads DB1 again. (D) a second explicit `disconnect()` stops further reconnections.
 - All waits are bounded, checks are on observed network traffic/reads/events rather than solely implementation state, and the evidence is recorded before fixture cleanup. The separate immutable **original-red / candidate-green** COTP regression remains a required component of the hosted COTP aggregate on both OSes. Original master: 2 attempts / 1 live peer; fixed candidate: 1 attempt / 0 live peers.
 - This is **software loopback**, not industrial Siemens equipment or firmware qualification. HIL-S7-001/-002/-005/-007 remain **PENDING_HARDWARE**. No npm release, productive installation, hardware test, or PR merge. This evidence-documentation commit itself still requires its own final exact-head CI before merge decision.
+
+## N7-010 post-destroy queue admission (2026-11-09)
+
+Baseline `2cf864e38be447c2709348a25eb0524d67f5cf2d`; issue #14.
+Test-only commit `a1bed12` preserves the unchanged runtime and adds one regression
+in `test/s7/s7connection.spec.js`. On Linux Node v24.22.1,
+`./node_modules/.bin/mocha --grep 'post-destroy' test/s7/s7connection.spec.js`
+fails exactly the queue assertion (actual 1, expected 0) after the expected
+`ERR_ILLEGAL_STATE` rejection. The same test passes with one early return after
+that rejection. It checks 32 rejected requests, zero retained jobs and zero bytes.
+`TZ=America/Sao_Paulo npm test` then passes 242 tests. No original assertion was
+weakened. These are local in-memory tests, not Windows, wire or hardware proof.
+Hosted exact-head CI remains required; see the linked PR for its eventual result.
+HIL: not applicable to post-destroy in-memory queue admission. No release.
+
+## N7-010 branch reconciliation — 2026-11-10
+
+Protected nodes7 `master` already includes the separately approved PR #21
+(`f93a42badc950b4acd1ee89efcac866d43ff1851`), which fixes the
+explicit-stop COTP retry and includes the same-client real S7Comm recovery
+contract. This N7-010 branch preserves that approved baseline and independently
+adds only the post-destroy `sendRaw()` early return, the 32-request queue
+regression and this evidence update. No wrapper pin is changed here. The
+reconciled PR head must pass fresh Windows/Linux CI and CodeQL before a
+separate maintainer squash-merge decision. All Siemens hardware test cases
+remain pending and no publication or production test is authorized.

@@ -56,6 +56,39 @@ function createStream(requests, responses) {
 
 describe('S7Connection', () => {
 
+    // HIL: not applicable; admission after destroy uses an in-memory stream only.
+    it('should reject post-destroy requests without retaining or sending them', async () => {
+        let writes = 0;
+        const stream = new Duplex({
+            read() {},
+            write(chunk, encoding, callback) { writes++; callback(); }
+        });
+        const conn = new S7Connection(stream);
+        try {
+            conn.destroy();
+            for (let attempt = 0; attempt < 32; attempt++) {
+                let observedError;
+                try {
+                    await conn.sendRaw({ header: { type: constants.proto.type.REQUEST } });
+                } catch (error) {
+                    observedError = error;
+                }
+                expect(observedError && observedError.code).to.equal('ERR_ILLEGAL_STATE');
+                expect(conn._jobQueue.length, 'rejected request must not enter queue').to.equal(0);
+                expect(conn._jobInProcess.size).to.equal(0);
+            }
+            conn.destroy();
+            expect(conn._jobQueue.length).to.equal(0);
+            expect(writes, 'destroyed connection must not send bytes').to.equal(0);
+        } finally {
+            // Cleanup cannot mask the queue assertion above on the broken baseline.
+            conn.clearQueue();
+            conn.destroy();
+            stream.destroy();
+        }
+    });
+
+
     it('should connect and negotiate parameters', done => {
         let reqs = [
             Buffer.from('32010000000000080000f0000008000803c0', 'hex') //REQ - Setup communication
