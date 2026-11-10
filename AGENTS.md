@@ -8,6 +8,12 @@ This is the independently maintained downstream fork of [st-one-io/nodes7](https
 
 Use one well-scoped fault, a failing baseline regression, a minimal patch, and a passing candidate regression. Tests must run against the actual modified package; do not let expected-red characterization masquerade as a fix. Distinguish unit mocks, real loopback TCP/S7Comm fixtures, Siemens simulation, hardware verification, and release.
 
+## Mandatory behavioral contract / state-transition test standard
+
+For every change to connection, retry, timeout, lifecycle, resource ownership, read/write admission or failure handling, document the **public command** (for example `disconnect()`), the **externally caused state** (peer loss), and relevant configuration (for example `autoReconnect=0` versus enabled). A disconnect *event* is not a user `disconnect()` command. Cover both expected and forbidden behavior; tests should use the same endpoint across command → state → recovery transitions wherever relevant.
+
+Prefer **real public API plus disposable loopback TCP/S7Comm** to implementation-state-only or mock-only assertions. For the affected behavior, require observable positive and negative controls: no retry after explicit stop; deliberate `connect()` may resume; auto-retry after external loss only when enabled; bounded timers/sockets, no duplicate ambiguous write replay or stale results. A new bug fix requires a **same-test original-red / candidate-green** regression on named commits; a suite that unexpectedly passes on broken code or passes due to harness timeout is not evidence. Run supported Ubuntu/Windows matrices, preserve machine-readable before-fixture-cleanup results and exact-head CI. State nonapplicable cases with a technical reason; do not invent a full protocol/HIL test for docs-only work. See `docs/TEST_STRATEGY.md`.
+
 ## Required change procedure
 
 - Make changes on feature branches and submit PRs. **Never directly push to `master`**, auto-merge, publish to npm, deploy to production OT, or contact real PLCs without explicit human authorization.

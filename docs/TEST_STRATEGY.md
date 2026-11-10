@@ -7,6 +7,18 @@ Historical sections below retain the status of their named revision; they do not
 
 # Test strategy and confidence levels
 
+## Mandatory public-command / external-state transition contract (adopted principle; pending PR merge)
+
+Each relevant behavior PR must provide an executable *scenario*, not only an isolated function assertion:
+
+1. **Commands:** an explicit `disconnect()` stops future attempts even if `autoReconnect > 0`. A later explicit `connect()` restores operation of the **same endpoint** and verifies a real read/operation where relevant.
+2. **External state:** independently drop/restart the disposable peer without invoking public disconnect/connect. With `autoReconnect > 0`, prove an actual bounded retry and fresh recovery; with `autoReconnect = 0`, prove no automatic retry. Distinguish disconnect *event* from disconnect *command*.
+3. **Negative controls:** for a defect, run the **same test** on immutable original source and candidate: named assertion must fail on original and pass on candidate. Verify the test detects broken behavior; reject generic harness timeout or silently skipped protocol work.
+4. **Observability:** assert public API results, events, real wire traffic, fresh values and sockets/timers **before test fixture cleanup**, with bounded waits, no leaked promises/handles and archived redacted JSON/log evidence. No automatic replay of uncertain PLC writes.
+5. **Scope & review:** execute Windows/Linux CI on the exact head, link runs, declare configuration matrix and coverage gaps. For purely documentation/static changes, mark behavior contract not applicable with a concrete reason. Loopback evidence never implies Siemens hardware acceptance; HIL IDs remain pending until authorized physical testing.
+
+**Reference pattern:** [nodes7 PR #21](https://github.com/Missel2/nodes7/pull/21) tests public stop → explicit resume → *external* software server loss → configuration-driven automatic recovery → explicit stop, with an actual S7Comm DB read; original-red/current-green regression remains a separate gate. New runtime changes must retain or extend this contract, not replace it with weaker mock checks.
+
 | Layer | Environment | Evidence | What it does not prove |
 | --- | --- | --- | --- |
 | Syntax/negative control | GitHub-hosted Ubuntu/Windows; Node 22/24 | Every repository JS file parses and a deliberately malformed file is rejected | Runtime behavior |
