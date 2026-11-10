@@ -7,7 +7,11 @@ const net = require('node:net');
 const {Duplex} = require('node:stream');
 const fs = require('node:fs');
 const path = require('node:path');
-const {S7Endpoint} = require('../../src/index.js');
+// Only the CI original-red runner sets N7_ENDPOINT_SOURCE to a fixed Git blob.
+// Normal candidate tests continue loading the public export.
+const {S7Endpoint} = process.env.N7_ENDPOINT_SOURCE
+    ? {S7Endpoint:require(process.env.N7_ENDPOINT_SOURCE)}
+    : require('../../src/index.js');
 const OUT = path.resolve(__dirname, '../../test-reports');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 function deadline(p, ms, label) {
@@ -120,4 +124,61 @@ test('late custom transport resolution is destroyed after user cancellation', {t
     assert.equal(closed,true);
     assert.equal(connected,0);
     assert.equal(endpoint.isConnected,false);
+});
+
+// HIL-S7-001/005/007: pending. Disposable TCP peer with an unanswered COTP CR.
+test('manual disconnect cancels the scheduled COTP retry', { timeout: 9000 }, async () => {
+    const peers = new Set();
+    const errors = [];
+    let accepted = 0;
+    let receiveFirstRequest;
+    const firstRequest = new Promise(resolve => { receiveFirstRequest = resolve; });
+    const server = net.createServer(socket => {
+        accepted++;
+        peers.add(socket);
+        socket.once('close', () => peers.delete(socket));
+        socket.on('error', error => errors.push(error.code));
+        if (accepted !== 1) return;
+        let bytes = Buffer.alloc(0);
+        socket.on('data', chunk => {
+            bytes = Buffer.concat([bytes, chunk]);
+            if (bytes.length >= 22) receiveFirstRequest({ socket, bytes });
+        });
+    });
+    await deadline(new Promise((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', resolve);
+    }), 3000, 'listen');
+    const retryMs = 1000;
+    const endpoint = new S7Endpoint({
+        host: '127.0.0.1',
+        port: server.address().port,
+        rack: 0,
+        slot: 1,
+        autoReconnect: retryMs
+    });
+    endpoint.on('error', error => errors.push(error.code));
+    const report = { case: 'manual COTP disconnect cancels auto reconnect', retryMs };
+    try {
+        const { socket, bytes } = await deadline(firstRequest, 3000, 'first COTP request');
+        assert.equal(bytes.readUInt16BE(2), 22);
+        assert.equal(bytes[5], 0xe0);
+        const peerClosed = new Promise(resolve => socket.once('close', resolve));
+        await deadline(endpoint.disconnect(), 1500, 'manual disconnect');
+        await deadline(peerClosed, 1500, 'peer socket close');
+        assert.equal(accepted, 1, 'one original attempt before the retry window');
+        assert.equal(peers.size, 0, 'original socket closes first');
+        await sleep(retryMs + 300);
+        report.attemptsAfterRetryWindow = accepted;
+        report.livePeersBeforeFixtureCleanup = peers.size;
+        report.errors = errors;
+        assert.equal(accepted, 1, 'N7_NO_RETRY_AFTER_DISCONNECT');
+        assert.equal(peers.size, 0, 'no live peer after the retry window');
+        assert.deepEqual(errors, []);
+    } finally {
+        save('n7-cotp-cancel-scheduled-retry.json', report);
+        await deadline(endpoint.disconnect(), 1500, 'cleanup disconnect');
+        for (const socket of peers) socket.destroy();
+        await deadline(new Promise(resolve => server.close(resolve)), 3000, 'server.close');
+    }
 });
