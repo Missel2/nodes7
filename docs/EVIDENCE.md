@@ -66,3 +66,10 @@ Final candidate source is still in a **draft PR** and has **not been merged**. E
 - **Remaining risk:** true industrial Siemens firmware/HIL untested, extended duration and unusual network timing not exhaustively covered, visible public `connect()` cancellation rejection is a breaking behavioral change for consumers that relied on the old unresolved promise. No npm publish or Node-RED wrapper integration. A separate maintainer approval is still needed to merge PR #13.
 
 The documentation update above creates a **new commit**; only final exact-head CI on that new SHA authorizes describing this PR as fully green for human review. Do not auto-merge.
+
+## N7-020 original-red / candidate-green upgrade (2026-11-10)
+
+- **Open [PR #21](https://github.com/Missel2/nodes7/pull/21), NOT merged.** Immutable original `master` `2cf864e38be447c2709348a25eb0524d67f5cf2d`; one narrow endpoint fix in `disconnect()` clears `_reconnectTimer` unconditionally *before* teardown. Ordinary network-error reconnect scheduling is unchanged.
+- CI now executes the **identical real 22-byte COTP pending-handshake test** on GitHub-hosted Ubuntu/Windows against both (1) `git show` of the exact original source loaded under a temporary, exclusively-created `src` module name, and (2) the PR candidate source. It checks exact expected-red assertion `N7_NO_RETRY_AFTER_DISCONNECT`, absence of generic harness timeout, and JSON evidence of **2 TCP accepts/1 live peer** before cleanup on original versus **1 accept/0 live peers** on candidate. JSON/TAP archives are included in the COTP job's artifact. The existing COTP baseline-red/candidate-green and S7Comm/Wire CI continue without weakening.
+- This entry describes the *added acceptance criteria*, **not a successful run yet**. Use the subsequent exact-head GitHub Actions and CodeQL results for completion. Manual disconnect must suppress retry; unexpected network loss must still retain normal automatic recovery; explicit later `connect()` remains a separate contract. Tests do not imply Siemens firmware/HIL qualification.
+- HIL-S7-001/005/007 **PENDING_HARDWARE**. No npm publish, deployment, real PLC, or merge authorized.

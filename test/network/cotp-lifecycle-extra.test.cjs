@@ -7,7 +7,11 @@ const net = require('node:net');
 const {Duplex} = require('node:stream');
 const fs = require('node:fs');
 const path = require('node:path');
-const {S7Endpoint} = require('../../src/index.js');
+// Only the CI original-red runner sets N7_ENDPOINT_SOURCE to a fixed Git blob.
+// Normal candidate tests continue loading the public export.
+const {S7Endpoint} = process.env.N7_ENDPOINT_SOURCE
+    ? {S7Endpoint:require(process.env.N7_ENDPOINT_SOURCE)}
+    : require('../../src/index.js');
 const OUT = path.resolve(__dirname, '../../test-reports');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 function deadline(p, ms, label) {

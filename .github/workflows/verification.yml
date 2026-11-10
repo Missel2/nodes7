@@ -96,6 +96,8 @@ jobs:
         run: node scripts/ci/verify-cotp-candidate-green.cjs
       - name: Prove repeated TCP cleanup and late custom transport cancellation
         run: node --test test/network/cotp-lifecycle-extra.test.cjs
+      - name: Prove new explicit disconnect retry regression original-red and candidate-green
+        run: node scripts/ci/verify-cotp-retry-red-green.cjs
       - name: Prove actual 22-byte COTP CC queued and callback-after-cancel race
         run: node --test test/network/cotp-cc-race.test.cjs
       - name: Preserve separate original-red and candidate-green TCP evidence
