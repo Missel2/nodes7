@@ -64,7 +64,7 @@ jobs:
         run: node --test test/bootstrap/api.contract.test.cjs
       - name: Preserve unit coverage evidence (not a hardware result)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: upstream-unit-coverage-${{ matrix.os }}-node22
           path: |
@@ -102,7 +102,7 @@ jobs:
         run: node --test test/network/cotp-cc-race.test.cjs
       - name: Preserve separate original-red and candidate-green TCP evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: n7-003-cotp-red-green-${{ matrix.os }}-node22
           path: test-reports/
@@ -133,7 +133,7 @@ jobs:
         run: node --test test/protocol/*.test.js
       - name: Preserve synthetic DB write/readback, restart and RST evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: n7-003-s7-wire-${{ matrix.os }}-node22
           path: test-reports/s7-*
@@ -178,7 +178,7 @@ jobs:
           node scripts/ci/check-package.cjs package-dry-run.json
       - name: Preserve package metadata
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: package-dry-run-ubuntu-node22
           path: package-dry-run.json
