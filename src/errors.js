@@ -15,6 +15,7 @@
  * Here is a list of the error codes that can be thrown by the library itself:
  *  - `ERR_ILLEGAL_STATE`: Internal condition required for executing an action is not fulfilled
  *  - `ERR_INTERRUPTED`: Pending job has been interrupted (e.g. by a disconnection)
+ *  - `ERR_QUEUE_FULL`: An opt-in bounded waiting queue rejected a request before send (info.sent=false)
  *  - `ERR_INVALID_ARGUMENT`: A supplied parameter of a called function is out of specification 
  *  - `ERR_ITEM_TOO_BIG`: Item being written does not fit a single write request
  *  - `ERR_NOT_CONNECTED`: Trying to perform an operation that requires communication to the PLC, but no connection is currently established
