@@ -122,6 +122,36 @@ describe('S7Connection optional queued-job capacity', () => {
         }
     });
 
+    it('opens a waiting slot after a real parsed response and preserves FIFO', async () => {
+        const h = await syntheticConnection({ maxQueuedJobs: 1 });
+        const pending = [];
+        try {
+            pending.push(observed(h.conn.sendRaw(request())));
+            pending.push(observed(h.conn.sendRaw(request())));
+            assert.equal(h.conn._jobQueue.length, 1);
+            const refused = await Promise.race([
+                observed(h.conn.sendRaw(request())),
+                new Promise(resolve => setTimeout(() => resolve({ error: { code: 'ERR_NOT_REFUSED' } }), 80))
+            ]);
+            assert.equal(refused.error && refused.error.code, 'ERR_QUEUE_FULL');
+
+            // A parsed response releases one in-flight slot and dispatches
+            // the oldest queued request; no application-level replay occurs.
+            h.stream.push(Buffer.from('3203000000010002000500000401ff04000808', 'hex'));
+            await new Promise(resolve => setImmediate(resolve));
+            assert.equal(h.conn._jobInProcess.size, 1);
+            assert.equal(h.conn._jobQueue.length, 0);
+            assert.equal(h.frames.length, 3, 'setup, first request, then next FIFO request');
+
+            pending.push(observed(h.conn.sendRaw(request())));
+            assert.equal(h.conn._jobQueue.length, 1, 'new request may now wait');
+        } finally {
+            h.conn.destroy();
+            h.stream.destroy();
+            await Promise.all(pending);
+        }
+    });
+
     it('keeps the existing unbounded behavior when the new option is omitted', async () => {
         const h = await syntheticConnection({});
         const promises = [];
