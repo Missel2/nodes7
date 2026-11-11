@@ -34,7 +34,7 @@ function observed(promise) {
     return promise.then(value => ({ value }), error => ({ error }));
 }
 
-async function createHarness() {
+async function createHarness(options = {}) {
     const frames = [];
     const errors = [];
     const stream = new Duplex({
@@ -48,7 +48,8 @@ async function createHarness() {
     const conn = new S7Connection(stream, {
         maxJobs: 1,
         maxQueuedJobs: 1,
-        timeout: 65
+        timeout: 65,
+        ...options
     });
     conn.on('error', e => errors.push(e));
     const ready = once(conn, 'connect');
@@ -65,57 +66,94 @@ async function waitFor(predicate, maxMs = 650) {
     assert.ok(predicate(), 'Synthetic wire observation deadline');
 }
 
-describe('S7Connection timeout + late response (baseline characterization only)', () => {
-    it('currently leaves queued work pending after a standalone request timeout', async () => {
-        const h = await createHarness();
-        let pending;
+describe('S7Connection timeout + late response (safe opt-in regression)', () => {
+    // Baseline-red on source with no abortOnTimeout support; green only after
+    // rejected waiting requests cannot later dispatch on a timed-out session.
+    it('opt-in abort rejects waiting work and closes the connection on timeout', async () => {
+        const h = await createHarness({ abortOnTimeout: true });
+        let waiting;
         try {
             const first = observed(h.conn.sendRaw(readRequest()));
-            pending = observed(h.conn.sendRaw(readRequest()));
-            let pendingSettled = false;
-            pending.then(() => { pendingSettled = true; });
+            waiting = observed(h.conn.sendRaw(readRequest()));
             const firstResult = await first;
             assert.equal(firstResult.error && firstResult.error.code, 'ERR_TIMEOUT');
+            const queuedResult = await Promise.race([
+                waiting,
+                new Promise(resolve => setTimeout(() => resolve({ error: { code: 'ERR_ABORT_MISSING' } }), 160))
+            ]);
+            assert.equal(queuedResult.error && queuedResult.error.code, 'ERR_INTERRUPTED',
+                'timeout-abort must reject queued work, not strand it');
+            assert.equal(h.conn.isConnected, false);
+            assert.equal(h.conn._jobQueue.length, 0);
             assert.equal(h.conn._jobInProcess.size, 0);
-            assert.equal(h.conn._jobQueue.length, 1);
-            assert.equal(h.frames.length, 2, 'setup and first request only');
-            await new Promise(resolve => setTimeout(resolve, 90));
-            assert.equal(pendingSettled, false, 'waiting request currently has no running timeout');
-            assert.equal(h.conn._jobQueue.length, 1);
+            assert.equal(h.frames.length, 2, 'only setup and first PDU were sent');
             assert.equal(h.errors.length, 0);
-            // This is proof of the *existing defect*, not a desired contract.
         } finally {
             h.conn.destroy();
             h.stream.destroy();
-            if (pending) {
-                const after = await pending;
-                assert.equal(after.error && after.error.code, 'ERR_INTERRUPTED');
+            if (waiting) await waiting;
+        }
+    });
+
+    it('opt-in abort prevents a late reply from dispatching queued work', async () => {
+        const h = await createHarness({ abortOnTimeout: true });
+        let waiting;
+        try {
+            const first = observed(h.conn.sendRaw(readRequest()));
+            waiting = observed(h.conn.sendRaw(readRequest()));
+            const firstResult = await first;
+            assert.equal(firstResult.error && firstResult.error.code, 'ERR_TIMEOUT');
+            const queuedResult = await Promise.race([
+                waiting,
+                new Promise(resolve => setTimeout(() => resolve({ error: { code: 'ERR_ABORT_MISSING' } }), 160))
+            ]);
+            assert.equal(queuedResult.error && queuedResult.error.code, 'ERR_INTERRUPTED');
+            h.stream.push(LATE_READ_REPLY);
+            await new Promise(resolve => setTimeout(resolve, 35));
+            assert.equal(h.frames.length, 2, 'late ACK must never send previously queued work');
+            assert.equal(h.conn._jobQueue.length, 0);
+            assert.equal(h.conn._jobInProcess.size, 0);
+            assert.equal(h.conn.isConnected, false);
+            assert.equal(h.errors.length, 0);
+        } finally {
+            h.conn.destroy();
+            h.stream.destroy();
+            if (waiting) await waiting;
+        }
+    });
+
+    it('rejects ambiguous abortOnTimeout types instead of silently disabling safety', () => {
+        for (const value of [null, 1, 0, 'true', {}, []]) {
+            const stream = new Duplex({ read() {}, write(_data, _enc, done) { done(); } });
+            try {
+                assert.throws(() => new S7Connection(stream, { abortOnTimeout: value }),
+                    e => e.code === 'ERR_INVALID_ARGUMENT');
+            } finally {
+                stream.destroy();
             }
         }
     });
 
-    it('currently sends queued work after a late reply to the timed-out PDU', async () => {
+    // Compatibility counterexample: no opt-in preserves prior direct-client
+    // semantics; it is characterization, NOT a recommendation to use them.
+    it('keeps existing direct-client timeout semantics without opt-in', async () => {
         const h = await createHarness();
-        let pending;
+        let waiting;
         try {
             const first = observed(h.conn.sendRaw(readRequest()));
-            pending = observed(h.conn.sendRaw(readRequest()));
+            waiting = observed(h.conn.sendRaw(readRequest()));
             const firstResult = await first;
             assert.equal(firstResult.error && firstResult.error.code, 'ERR_TIMEOUT');
             assert.equal(h.conn._jobQueue.length, 1);
             assert.equal(h.conn._jobInProcess.size, 0);
-            assert.equal(h.frames.length, 2, 'no second request before the late reply');
             h.stream.push(LATE_READ_REPLY);
             await waitFor(() => h.frames.length === 3);
             assert.equal(h.conn._jobQueue.length, 0);
             assert.equal(h.conn._jobInProcess.size, 1);
-            assert.equal(h.errors.length, 0);
-            // A dispatched write in this position could have ambiguous effects.
-            // Corrected behavior must be specified and independently tested.
         } finally {
             h.conn.destroy();
             h.stream.destroy();
-            if (pending) await pending;
+            if (waiting) await waiting;
         }
     });
 });
