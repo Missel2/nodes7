@@ -1,7 +1,7 @@
 {
-  "name": "@st-one-io/nodes7",
+  "name": "@missel2/nodes7",
   "description": "A javascript library to communicate with Siemens S7 PLCs",
-  "version": "1.1.2",
+  "version": "0.1.0-alpha.1",
   "author": "Guilherme Francescon <guilherme@st-one.io>",
   "keywords": [
     "S7",
@@ -19,7 +19,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/st-one-io/nodes7"
+    "url": "https://github.com/Missel2/nodes7.git"
   },
   "main": "src/index.js",
   "scripts": {
@@ -38,5 +38,12 @@
   },
   "dependencies": {
     "iso-on-tcp": "^0.1.0"
+  },
+  "files": [
+    "src/"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
   }
 }

@@ -1,0 +1,53 @@
+name: Release preflight (no publish)
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# This workflow only verifies files; no npm credentials, OIDC or publishing.
+permissions:
+  contents: read
+
+jobs:
+  alpha-preflight:
+    name: Alpha archive, SBOM and license preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked production runtime without package scripts
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Prove negative release-contract tests
+        run: node --test test/release/preflight.test.cjs
+      - name: Inspect actual unpublished npm archive and generate dependency SBOMs
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          npm pack --ignore-scripts --json --pack-destination release-evidence > release-evidence/pack.json
+          node scripts/ci/check-package.cjs release-evidence/pack.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=spdx > release-evidence/sbom.spdx.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=cyclonedx > release-evidence/sbom.cdx.json
+          node scripts/release/verify-preflight.cjs release-evidence
+      - name: Archive non-executable review evidence only
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodes7-alpha-preflight-${{ github.run_id }}
+          path: |
+            release-evidence/manifest.json
+            release-evidence/pack.json
+            release-evidence/sbom.spdx.json
+            release-evidence/sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 7

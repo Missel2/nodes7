@@ -1,4 +1,4 @@
-> **Independent development fork:** This is [Missel2/nodes7](https://github.com/Missel2/nodes7), based on [st-one-io/nodes7](https://github.com/st-one-io/nodes7). Original authorship, Git history and GPL-3.0-or-later license are retained. It has no separately published, validated release. It is not a Siemens product or safety certification. Read [engineering rules](AGENTS.md), [test strategy](docs/TEST_STRATEGY.md), [evidence](docs/EVIDENCE.md) and [work index](docs/WORK_INDEX.md). The package name in `package.json` still belongs to upstream; npm installation of that name does **not** install this fork.
+> **Independent prerelease candidate:** This is [Missel2/nodes7](https://github.com/Missel2/nodes7), based on [st-one-io/nodes7](https://github.com/st-one-io/nodes7). The proposed independent npm identity is `@missel2/nodes7@0.1.0-alpha.1` with the `alpha` distribution tag. **No npm publication is claimed.** Original authorship, history and GPL-3.0-or-later terms are retained. No physical Siemens CPU tests or safety certification. See [engineering rules](AGENTS.md), [test strategy](docs/TEST_STRATEGY.md) and [release preflight](docs/RELEASE_PREFLIGHT.md).
 
 ---
 
@@ -18,7 +18,7 @@ Fully test everything you do. The authors, contributors or anything or anybody r
 ## Usage Example
 
 ```js
-const { S7Endpoint, S7ItemGroup } = require('nodes7');
+const { S7Endpoint, S7ItemGroup } = require('@missel2/nodes7');
 
 let plc = new S7Endpoint({ host: '192.168.0.1', rack: 0, slot: 1 });
 
