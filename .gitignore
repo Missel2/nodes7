@@ -62,3 +62,6 @@ typings/
 
 # temporary folder for the project
 tmp/
+
+# Locally generated, unpublished npm release evidence
+release-evidence/
