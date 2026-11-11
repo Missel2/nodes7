@@ -57,6 +57,7 @@ class S7Connection extends EventEmitter {
      * @param {object} stream the Duplex Stream used to exchange data with the PLC
      * @param {object} [opts] configuration options
      * @param {number} [opts.maxJobs] the max number of parallel jobs
+     * @param {number} [opts.maxQueuedJobs] maximum waiting requests (nonnegative safe integer); omitted means the historical unlimited queue
      * @param {number} [opts.maxPDUSize] the max PDU Size
      * @param {number} [opts.timeout=2000] the timeout for execution of requests. 0 for no timeout
      */
@@ -73,6 +74,14 @@ class S7Connection extends EventEmitter {
 
         opts = opts || {};
         this.maxJobs = opts.maxJobs || 8;
+        if (opts.maxQueuedJobs !== undefined &&
+            (!Number.isSafeInteger(opts.maxQueuedJobs) || opts.maxQueuedJobs < 0)) {
+            throw new NodeS7Error('ERR_INVALID_ARGUMENT',
+                'maxQueuedJobs must be a nonnegative safe integer');
+        }
+        // Distinct from maxJobs: this limits only waiting, not in-flight PDUs.
+        // An omitted option keeps the original unlimited behavior.
+        this.maxQueuedJobs = opts.maxQueuedJobs === undefined ? null : opts.maxQueuedJobs;
         this.maxPDUSize = opts.maxPDUSize || 960;
         this.timeout = opts.timeout !== undefined && !isNaN(opts.timeout) ? opts.timeout : 2000;
 
@@ -381,6 +390,25 @@ class S7Connection extends EventEmitter {
 
             if (this._connectionState > CONN_CONNECTED) {
                 rej(new NodeS7Error('ERR_ILLEGAL_STATE', "Not connected"));
+                return;
+            }
+
+            // Preserve FIFO. A zero-capacity queue still permits immediate
+            // dispatch into an available negotiated PDU slot.
+            const dispatchImmediately = this.isConnected &&
+                this._jobQueue.length === 0 &&
+                this._jobInProcess.size < this._maxJobs;
+            if (this.maxQueuedJobs !== null && !dispatchImmediately &&
+                this._jobQueue.length >= this.maxQueuedJobs) {
+                // The rejected request has not received a PDU reference and
+                // cannot have reached the transport. Never retry it silently.
+                rej(new NodeS7Error('ERR_QUEUE_FULL',
+                    'S7 waiting queue is full; request was not sent', {
+                        sent: false,
+                        queued: this._jobQueue.length,
+                        maxQueuedJobs: this.maxQueuedJobs,
+                        inFlight: this._jobInProcess.size
+                    }));
                 return;
             }
 
