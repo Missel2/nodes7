@@ -1,4 +1,4 @@
-> **Independent development fork:** This is [Missel2/nodes7](https://github.com/Missel2/nodes7), based on [st-one-io/nodes7](https://github.com/st-one-io/nodes7). Original authorship, Git history and GPL-3.0-or-later license are retained. It has no separately published, validated release. It is not a Siemens product or safety certification. Read [engineering rules](AGENTS.md), [test strategy](docs/TEST_STRATEGY.md), [evidence](docs/EVIDENCE.md) and [work index](docs/WORK_INDEX.md). The package name in `package.json` still belongs to upstream; npm installation of that name does **not** install this fork.
+> **Independent development fork:** This is [Missel2/nodes7](https://github.com/Missel2/nodes7), based on [st-one-io/nodes7](https://github.com/st-one-io/nodes7). Original authorship, Git history and GPL-3.0-or-later license are retained. It has no separately published, validated release. It is not a Siemens product or safety certification. Read [contributing](CONTRIBUTING.md), [current review](docs/PROJECT_REVIEW.md), and [engineering rules](AGENTS.md), [test strategy](docs/TEST_STRATEGY.md), [evidence](docs/EVIDENCE.md) and [work index](docs/WORK_INDEX.md). The package name in `package.json` still belongs to upstream; npm installation of that name does **not** install this fork.
 
 ---
 
@@ -17,8 +17,12 @@ Fully test everything you do. The authors, contributors or anything or anybody r
 
 ## Usage Example
 
+This is the inherited API example, not a command to connect a real PLC. It assumes
+the maintained source is installed under its existing package key; the registry
+package with that key remains upstream. For hardware-free work use [CONTRIBUTING](CONTRIBUTING.md).
+
 ```js
-const { S7Endpoint, S7ItemGroup } = require('nodes7');
+const { S7Endpoint, S7ItemGroup } = require('@st-one-io/nodes7');
 
 let plc = new S7Endpoint({ host: '192.168.0.1', rack: 0, slot: 1 });
 
@@ -55,4 +59,4 @@ plc.once('connect', async () => {
 
 ## Documentation
 
-Please check the [API documentation](doc/API.md), specially the [S7Endpoint](doc/API.md#S7Endpoint) and [S7ItemGroup](doc/API.md#S7ItemGroup) sections
+API JSDoc is maintained in [S7Endpoint source](src/s7endpoint.js) and [S7ItemGroup source](src/s7itemGroup.js). The inherited `npm run doc` toolchain is under dependency review; generated API documentation is not checked in.

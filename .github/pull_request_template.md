@@ -13,6 +13,15 @@
 - Real S7Comm loopback tests (if applicable):
 - Limitations, flaky/blocked tests or known failures:
 
+## Behavioral state-transition acceptance (mandatory for relevant changes)
+
+- Public command vs externally caused state, tested configuration and expected/forbidden transitions:
+- Same-endpoint end-to-end scenario (explicit stop → explicit resume → external loss → conditional automatic recovery), or technical reason N/A:
+- Original-red / same-test candidate-green and meaningful negative control (or reason N/A):
+- Public events, network requests, fresh reads, socket/timer state **before fixture cleanup**, bounded wait and JSON evidence:
+- `autoReconnect=0` and enabled, cancellation, delayed callback and no ambiguous write replay (applicable cases or justified exceptions):
+- Exact-head Windows/Linux checks and remaining HIL obligations:
+
 ## HIL applicability
 
 - HIL-S7-* IDs or `HIL: not applicable` with justification:

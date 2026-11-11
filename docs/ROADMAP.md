@@ -1,46 +1,38 @@
-# Roadmap — evidence-driven protocol maintenance
+# Roadmap: reproducible faults to qualified packages
 
-**Starting point (2026-11-08):** fork unchanged from upstream `ec89d6b8`, no own CI, no rulesets, Issues disabled. This is a plan, not a record of completed tests.
-
-## P0 — Establish independently verifiable baseline
-
-- Bootstrap PR: provenance, AI/human maintenance, safety gates, read-only contract and hosted Ubuntu/Windows CI; no runtime changes.
-- Human enables Issues and configures an active `protect-master` ruleset only after matching workflow checks exist.
-- Separate lockfile PR: correct root lockfile for package version 1.1.2, real integrity hashes, exact dependency tree and verified cross-OS `npm ci`; don't change runtime versions in same PR.
-- Add focused static-quality checks and security review without mass refactoring legacy code.
-
-## P0 — Close leaking COTP transport during partial setup
-
-- Port and independently rerun blackhole/early-disconnect characterization from the Node-RED wrapper work.
-- Require original-red/candidate-green assertion of **client and peer close without fixture-forced termination**, across timeout, disconnect, late handshake, RST and repeat cycles.
-- Patch only the correct `nodes7` layer; measure event/listener/timer ownership; retain public behavior and wire read/write tests.
-- Integrate corrected package into downstream Node-RED wrapper via pinned source/lock, test both repos. No npm publication until separate decision.
-
-## P1 — Harden network and wire behavior
-
-- Verify actual protocol read/write, network fault handling, reconnect and shutdown on disposable loopback fixtures.
-- Review upstream PRs #14 (error handling), #19 (write packet framing), #21 (item packing) independently with red/green contracts. Never bulk-merge untested patches.
-- Preserve tests for ambiguous write results and do not replay non-idempotent writes.
-
-## P2 — Long-run reliability, compatibility and release candidates
-
-- Record socket counts and bounded recovery under repeated faults.
-- Maintain OS/Node matrix and compatibility commitments based on observed evidence.
-- Introduce isolated S7-1200 HIL only after explicit bench and operator approval. See `HIL_TEST_MATRIX.md`.
-- Decide fork package identity, signed artifacts, SBOM and controlled release only after qualifying the CI and hardware boundaries.
-
-Every round begins with actual branches, PRs, CodeQL, required checks and current evidence. No auto-merge.
-
-## 2026-11-08 implementation update (not a release)
-
-- Bootstrap [PR #1](https://github.com/Missel2/nodes7/pull/1) passed hosted Windows/Linux checks and CodeQL, and was **human-approved, squash-merged** to `master` at `1cbacddd05cac82f5a70e14469bf21b901df6de1`. Ruleset `protect-master` is active with eight required status checks; Issues are enabled.
-- N7-002 [Issue #10](https://github.com/Missel2/nodes7/issues/10) / [PR #11](https://github.com/Missel2/nodes7/pull/11): exact registry-backed v3 lockfile with all 336 resolved package versions unchanged, successful Ubuntu/Windows `npm ci`, seven negative controls, **explicitly human-approved/squash-merged** to `f201bcc0acdad4742e4066fa084577f23e396ce1`. Issue #10 closed.
-- N7-003 [Issue #12](https://github.com/Missel2/nodes7/issues/12) / [draft PR #13](https://github.com/Missel2/nodes7/pull/13): actual fork source original-red/candidate-green, source-level pending stream ownership fix, six-cycle cleanup, real synthetic S7Comm read/write/restart/RST on both hosted OSes and CodeQL. Prior implementation head had 13/13 green checks. **Unmerged**, pending exact final-head checks, risk review and explicit human permission.
-- True late COTP CC timing, long-duration soak, physical Siemens HIL and downstream wrapper dependency integration are **not** completed.
+**Verified repository snapshot: 2026-11-09; baseline `2cf864e38be447c2709348a25eb0524d67f5cf2d`.** PR #13 is merged: pending COTP transport cancellation and software wire tests are on master. The wrapper pins this exact source archive through its merged PR #15. This is software evidence, not a published fork release or physical Siemens qualification.
 
 
-### N7-003 COTP asynchronous-confirmation gap closed in hosted CI (2026-11-08)
+The [shared tracking issue](https://github.com/Missel2/node-red-contrib-s7/issues/21) owns completion checkboxes; the
+[work index](WORK_INDEX.md) maps repository-specific tasks. This roadmap orders
+work by exit evidence rather than promising delivery dates.
 
-- Added actual `ISOOnTCPParser`-validated 22-byte CC TPDU timing tests on disposable TCP loopback, with deterministic cancellation *after* CC parse but *before* ISO client's queued `connect` callback. Verified that the callback still executes after cancel but cannot resurrect endpoint/S7Conn; 0 client/peer socket handles before fixture cleanup, no false public events.
-- A separately queued-CC-before-disconnect case verifies cancellation regardless of whether TCP delivers the queued bytes after destruction; **do not claim post-destruction delivery**.
-- Prior implementation head `ae8420dde11e2cf4f34e95ce23d5f4c45cc36b3a` passed [Verification 42519777698](https://github.com/Missel2/nodes7/actions/runs/42519777698) and [CodeQL 42519777739](https://github.com/Missel2/nodes7/actions/runs/42519777739) (13 checks successful). Final documentation/head must be checked again before recommending separate human approval. Remains draft/unmerged; HIL and long-duration testing still open.
+| Stage | Work | Exit gate |
+| --- | --- | --- |
+| Now: trustworthy baseline | Correct stale handoffs; nodes7 #14 queue retention; existing wrapper PR #11; nodes7 #15 security triage | Reviewable isolated PRs; red/green regression; exact-head hosted checks; exposure-specific dependency disposition |
+| Next: consumer and fault contracts | Wrapper #18 installed Node-RED runtime; wrapper #19 uncertain writes; nodes7 #16 packet boundaries and fault corpus | Real package/flow lifecycle; no ambiguous write replay; independent byte oracle and bounded queue/recovery assertions |
+| Then: explicit semantics | nodes7 #17 dates; wrapper #20 freshness/diagnostics | Documented compatibility decision, cross-zone vectors and opt-in metadata tests |
+| Release candidate | Shared #21 package identity, supported matrix, migration and evidence manifest | Tested exact tarball pair, source/lock/package hashes, license inventory, known limitations and rollback |
+| Hardware claims | Wrapper #8 isolated S7-1200 bench | Named CPU/firmware/program/commit and authorized execution; all cases pending until then |
+
+## Engineering choices
+
+Keep protocol ownership in nodes7 and flow/editor ownership in the wrapper.
+Do not bundle a backend replacement, TypeScript migration or mass formatting with
+reliability fixes. Use property tests for packet boundaries and targeted mutations
+for important assertions only when they improve fault detection. Measure soak
+results after warm-up and before fixture teardown; do not choose a marketing
+uptime number. Test-only dependencies and runtime dependencies have separate risks.
+
+## Community deliverables
+
+- A hardware-free [contributor quickstart](../CONTRIBUTING.md) and reproducible bug reports.
+- One current entry point, historical evidence clearly labelled, original authors credited.
+- A release evidence manifest: repository SHAs, lock hashes, artifact digest, runtime/OS,
+  test commands/results, coverage limits, advisory disposition and HIL status.
+- Actual tarball installation, compatibility/migration notes and a rollback procedure.
+  SBOM and publishing provenance are release work; their existence is not claimed today.
+
+No new automation is enabled by this roadmap. Each session resumes outstanding CI
+and existing PRs before adding work. Merges, publishing and physical tests retain
+separate human decisions.
