@@ -151,6 +151,31 @@ test('actual nodes7 S7Comm connects, reads and writes synthetic DB1', { timeout:
     assert.equal(after.writable, 19.75, 'actual protocol write must persist');
     evidence.checks.push('S7 WRITE_VAR: synthetic DB1 REAL8 and READ_VAR readback');
 
+    // N7-029: real S7Comm + COTP frames, not a stubbed requestWriteVar.
+    // A 600-byte write exceeds one negotiated WRITE_VAR payload on this peer.
+    // Verify every byte, not only that the API promise resolves.
+    const largeData = Buffer.from(Array.from(
+        { length: 600 }, (_, i) => (i * 79 + 37) & 0xff));
+    assert.ok(largeData.length > endpoint.pduSize - 28,
+        'the regression must really exercise more than one WRITE_VAR PDU');
+    await Promise.race([
+        endpoint.writeDB(2, '100', largeData),
+        deadline(5000, 'real multi-PDU S7 WRITE_VAR')
+    ]);
+    const largeReadback = await Promise.race([
+        endpoint.readDB(2, 100, largeData.length),
+        deadline(5000, 'real multi-PDU S7 READ_VAR readback')
+    ]);
+    assert.deepEqual(largeReadback, largeData,
+        'all chunks of a multi-PDU write must persist exactly');
+    const untouchedBefore = await endpoint.readDB(2, 99, 1);
+    const untouchedAfter = await endpoint.readDB(2, 700, 1);
+    assert.deepEqual(untouchedBefore, Buffer.from([0]),
+        'byte immediately before the target area must remain unchanged');
+    assert.deepEqual(untouchedAfter, Buffer.from([0]),
+        'byte immediately after the target area must remain unchanged');
+    evidence.checks.push('N7-029: real S7Comm multi-PDU WRITE_VAR exact 600-byte readback plus sentinel bytes');
+
     assert.deepEqual(errors, [], 'healthy wire roundtrip must not emit endpoint errors');
     await Promise.race([endpoint.disconnect(), deadline(4000, 'healthy S7 disconnect')]);
     assert.equal(endpoint.isConnected, false, 'clean session disconnect must complete');
