@@ -794,11 +794,23 @@ class S7Endpoint extends EventEmitter {
             throw new NodeS7Error('ERR_NOT_CONNECTED', "Not connected");
         }
 
+        // A string byte address must be normalized before adding PDU offsets.
+        // Validate before sending any chunk: fixing only the slice end index
+        // could otherwise write previously omitted data to the wrong address.
+        const addressInput = typeof address === 'number' ||
+            (typeof address === 'string' && address.trim().length > 0);
+        const byteAddress = addressInput ? Number(address) : NaN;
+        if (!Number.isSafeInteger(byteAddress) || byteAddress < 0) {
+            throw new NodeS7Error('ERR_INVALID_ARGUMENT',
+                'Invalid write byte address: expected a nonnegative safe integer');
+        }
+        address = byteAddress;
+
         let maxPayload = this._pduSize - 28; //protocol overhead
         let requests = [];
         let dataLength = data.length;
         for (let ptr = 0; ptr < dataLength; ptr += maxPayload) {
-            let chunk = data.slice(ptr, Math.min(dataLength - ptr, maxPayload))
+            let chunk = data.slice(ptr, Math.min(ptr + maxPayload, dataLength))
             let item = [{
                 area, db,
                 address: address + ptr,
