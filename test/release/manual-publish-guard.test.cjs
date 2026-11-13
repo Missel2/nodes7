@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {guardContext,guardPackage,guardCI,guardArchive} =
-  require('../../scripts/release/manual-stage-guard.cjs');
+  require('../../scripts/release/manual-publish-guard.cjs');
 const SHA = 'c8b6e9e9dc48e240166527cb2e08410eebad5cf7';
 const HASH = '11327c208ad99dae5eca2fd4a6fd9a83e17637b8eb4ad1f2018c6ba98bd6c81e';
 
@@ -11,7 +11,7 @@ function context() {
   return {GITHUB_REPOSITORY:'Missel2/nodes7',
     GITHUB_REF:'refs/heads/master',GITHUB_EVENT_NAME:'workflow_dispatch',
     GITHUB_SHA:SHA,SOURCE_SHA_INPUT:SHA,ARCHIVE_SHA256_INPUT:HASH,
-    STAGE_OPERATION:'verify'};
+    RELEASE_OPERATION:'verify'};
 }
 function fixture() {
   const pkg={name:'@missel2/nodes7',version:'0.1.0-alpha.2',
@@ -22,9 +22,9 @@ function fixture() {
     '':{version:pkg.version,dependencies:pkg.dependencies},
     'node_modules/iso-on-tcp':{version:'0.1.0'}}}};
 }
-test('manual GitHub stage requires exact repo, master, source and archive, and operation',()=>{
+test('manual GitHub public publish requires exact repo, master, source and archive, and operation',()=>{
   assert.doesNotThrow(()=>guardContext(context()));
-  assert.doesNotThrow(()=>guardContext({...context(),STAGE_OPERATION:'stage'}));
+  assert.doesNotThrow(()=>guardContext({...context(),RELEASE_OPERATION:'publish'}));
   for(const [key,value] of [
     ['GITHUB_REPOSITORY','wrong/nodes7'],
     ['GITHUB_REF','refs/heads/feature'],
@@ -32,7 +32,7 @@ test('manual GitHub stage requires exact repo, master, source and archive, and o
     ['GITHUB_SHA','0'.repeat(40)],
     ['SOURCE_SHA_INPUT','a'.repeat(40)],
     ['ARCHIVE_SHA256_INPUT','0'.repeat(64)],
-    ['STAGE_OPERATION','publish']
+    ['RELEASE_OPERATION','stage']
   ]) assert.throws(()=>guardContext({...context(),[key]:value}),
     key+' intentionally invalid must reject');
 });
@@ -77,7 +77,7 @@ test('required post-merge push CI blocks missing, failed, unprotected or stale e
   assert.throws(()=>guardCI(branch,checks,{workflow_runs:runs.workflow_runs
     .map((x,i)=>i===0?{...x,event:'pull_request'}:x)},SHA));
 });
-test('arbitrary archive bytes are rejected before stage',()=>{
+test('arbitrary archive bytes are rejected before publication',()=>{
   const files=['LICENSE','README.md','package.json','src/index.js',
     'src/s7endpoint.js','src/s7connection.js','src/s7item.js',
     'src/s7itemGroup.js','src/s7address.js'].map(path=>({path}));
@@ -85,16 +85,27 @@ test('arbitrary archive bytes are rejected before stage',()=>{
     filename:'missel2-nodes7-0.1.0-alpha.2.tgz',files,integrity:'sha512-fake'}];
   assert.throws(()=>guardArchive(pack,Buffer.from('wrong bytes'),SHA),/ARCHIVE_BYTES_MISMATCH/);
 });
-test('the GitHub workflow is manual-only and direct public publish is absent',()=>{
-  const wf=fs.readFileSync('.github/workflows/npm-stage-manual.yml','utf8');
+test('manual publish workflow never triggers without a deliberate dispatch',()=>{
+  const wf=fs.readFileSync('.github/workflows/npm-publish-manual.yml','utf8');
   assert.match(wf,/^on:\n  workflow_dispatch:/m);
   assert.doesNotMatch(wf,/^  (?:push|pull_request|schedule|release):/m);
   assert.match(wf,/default: verify/);
-  assert.match(wf,/if: inputs.operation == 'stage'/);
-  assert.match(wf,/environment: npm-stage/);
+  assert.match(wf,/options: \[verify, publish\]/);
+  assert.match(wf,/if: inputs.operation == 'publish'/);
+  assert.match(wf,/environment: npm-release/);
   assert.equal((wf.match(/id-token: write/g)||[]).length,1);
-  assert.doesNotMatch(wf.slice(0,wf.indexOf('\n  stage:\n')),/id-token: write/);
-  assert.match(wf,/npm stage publish stage-evidence\/missel2-nodes7-0\.1\.0-alpha\.2\.tgz/);
-  assert.doesNotMatch(wf,/^\s*npm (?:publish|stage approve|dist-tag)\b/m);
+  assert.doesNotMatch(wf.slice(0,wf.indexOf('\n  publish:\n')),/id-token: write/);
+  assert.match(wf,/npm publish publish-evidence\/missel2-nodes7-0\.1\.0-alpha\.2\.tgz/);
+  assert.match(wf,/--tag=alpha --access=public --provenance/);
+  assert.doesNotMatch(wf,/^\s*npm (?:stage publish|stage approve|dist-tag)\b/m);
   assert.match(wf,/cancel-in-progress: false/);
+});
+test('release inputs are self-derived and SHA/digest pinned, not manually typed',()=>{
+  const wf=fs.readFileSync('.github/workflows/npm-publish-manual.yml','utf8');
+  assert.doesNotMatch(wf,/^\s*source_sha:\s*$/m);
+  assert.doesNotMatch(wf,/^\s*archive_sha256:\s*$/m);
+  assert.match(wf,/SOURCE_SHA_INPUT: \$\{\{ github\.sha \}\}/);
+  assert.match(wf,/ARCHIVE_SHA256_INPUT: '11327c208ad99dae5eca2fd4a6fd9a83e17637b8eb4ad1f2018c6ba98bd6c81e'/);
+  assert.equal(fs.existsSync('.github/workflows/npm-stage-manual.yml'),false,
+    'Do not leave a parallel older staging workflow available');
 });

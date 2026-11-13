@@ -35,7 +35,7 @@ function guardContext(env) {
   assert.match(env.GITHUB_SHA || '', /^[0-9a-f]{40}$/, 'BAD_SHA');
   assert.equal(env.SOURCE_SHA_INPUT, env.GITHUB_SHA, 'SHA_CHANGED');
   assert.equal(env.ARCHIVE_SHA256_INPUT, HASH, 'ARCHIVE_NOT_APPROVED');
-  assert.ok(['verify', 'stage'].includes(env.STAGE_OPERATION), 'INVALID_OPERATION');
+  assert.ok(['verify', 'publish'].includes(env.RELEASE_OPERATION), 'INVALID_OPERATION');
 }
 function guardPackage(pkg, lock) {
   assert.equal(pkg.name, NAME);
@@ -79,7 +79,7 @@ function guardArchive(pack, bytes, sha) {
   assert.equal(actual, HASH, 'ARCHIVE_BYTES_MISMATCH');
   const integrity = 'sha512-' + crypto.createHash('sha512').update(bytes).digest('base64');
   assert.equal(pack[0].integrity, integrity, 'INTEGRITY_MISMATCH');
-  return {sourceCommit:sha,name:NAME,version:VERSION,tag:'alpha',sha256:actual,integrity,mode:'STAGE_NOT_PUBLIC'};
+  return {sourceCommit:sha,name:NAME,version:VERSION,tag:'alpha',sha256:actual,integrity,mode:'PRE_PUBLISH_AUDITED'};
 }
 async function ghJson(url) {
   assert.ok(process.env.GITHUB_TOKEN, 'MISSING_READ_TOKEN');
@@ -106,20 +106,20 @@ async function main() {
       ghJson(root + '/commits/' + sha + '/check-runs?per_page=100'),
       ghJson(root + '/actions/runs?head_sha=' + sha + '&per_page=100')]);
     guardCI(branch,checks,runs,sha);
-    console.log('NODES7_MANUAL_STAGE_SOURCE_PASS');
+    console.log('NODES7_MANUAL_PUBLISH_SOURCE_PASS');
     return;
   }
-  const folder = path.resolve('stage-evidence');
+  const folder = path.resolve('publish-evidence');
   const pack = JSON.parse(fs.readFileSync(path.join(folder,'pack.json'),'utf8'));
   assert.equal(pack?.[0]?.filename, 'missel2-nodes7-0.1.0-alpha.2.tgz');
   const archive = path.resolve(folder,pack[0].filename);
   assert.equal(path.dirname(archive), folder);
   const result = guardArchive(pack,fs.readFileSync(archive),sha);
-  fs.writeFileSync(path.join(folder,'stage-verified.json'),JSON.stringify(result,null,2) + '\n');
-  console.log('NODES7_MANUAL_STAGE_ARCHIVE_PASS');
+  fs.writeFileSync(path.join(folder,'publish-verified.json'),JSON.stringify(result,null,2) + '\n');
+  console.log('NODES7_MANUAL_PUBLISH_ARCHIVE_PASS');
 }
 if (require.main === module) main().catch(() => {
-  console.error('NODES7_MANUAL_STAGE_GUARD_REJECTED');
+  console.error('NODES7_MANUAL_PUBLISH_GUARD_REJECTED');
   process.exitCode = 1;
 });
 module.exports = {guardContext,guardPackage,guardCI,guardArchive};
