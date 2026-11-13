@@ -251,7 +251,12 @@ class S7Connection extends EventEmitter {
         // remote outcome: never drain this session's waiting queue on a
         // late acknowledgment, and never replay an ambiguous write.
         // destroy() rejects waiting/other in-flight work as ERR_INTERRUPTED.
-        if (job && this.abortOnTimeout) this.destroy();
+        // The external stream is also closed, so a direct client cannot
+        // retain an idle TCP socket after this opt-in abort.
+        if (job && this.abortOnTimeout) {
+            this.destroy();
+            if (typeof this.stream.destroy === 'function') this.stream.destroy();
+        }
 
         /**
          * Emitted when a job times out. The job currently in
