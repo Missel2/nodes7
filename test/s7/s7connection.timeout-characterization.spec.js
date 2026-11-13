@@ -37,6 +37,7 @@ function observed(promise) {
 async function createHarness(options = {}) {
     const frames = [];
     const errors = [];
+    const timeouts = [];
     const stream = new Duplex({
         read() {},
         write(chunk, encoding, done) {
@@ -52,10 +53,11 @@ async function createHarness(options = {}) {
         ...options
     });
     conn.on('error', e => errors.push(e));
+    conn.on('timeout', payload => timeouts.push(payload));
     const ready = once(conn, 'connect');
     conn.connect();
     await ready;
-    return { conn, stream, frames, errors };
+    return { conn, stream, frames, errors, timeouts };
 }
 
 async function waitFor(predicate, maxMs = 650) {
@@ -88,6 +90,7 @@ describe('S7Connection timeout + late response (safe opt-in regression)', () => 
             assert.equal(h.conn._jobInProcess.size, 0);
             assert.equal(h.frames.length, 2, 'only setup and first PDU were sent');
             assert.equal(h.errors.length, 0);
+            assert.equal(h.timeouts.length, 1, 'one timeout event');
         } finally {
             h.conn.destroy();
             h.stream.destroy();
@@ -131,6 +134,52 @@ describe('S7Connection timeout + late response (safe opt-in regression)', () => 
             } finally {
                 stream.destroy();
             }
+        }
+    });
+
+    it('aborts other in-flight work and waiting work without a second timeout', async () => {
+        const h = await createHarness({ abortOnTimeout: true, maxJobs: 2, maxQueuedJobs: 1 });
+        const pending = [];
+        try {
+            // Setup negotiates three slots; maxJobs=2 dispatches two requests.
+            pending.push(observed(h.conn.sendRaw(readRequest())));
+            pending.push(observed(h.conn.sendRaw(readRequest())));
+            const waitingPayload = readRequest();
+            pending.push(observed(h.conn.sendRaw(waitingPayload)));
+            assert.equal(h.frames.length, 3, 'setup plus exactly two application PDUs');
+            assert.equal(h.conn._jobInProcess.size, 2);
+            assert.equal(h.conn._jobQueue.length, 1);
+            assert.equal(Object.prototype.hasOwnProperty.call(waitingPayload.header, 'pduReference'), false);
+
+            const outcomes = await Promise.all(pending);
+            assert.equal(outcomes[0].error && outcomes[0].error.code, 'ERR_TIMEOUT');
+            assert.equal(outcomes[1].error && outcomes[1].error.code, 'ERR_INTERRUPTED');
+            assert.equal(outcomes[2].error && outcomes[2].error.code, 'ERR_INTERRUPTED');
+            assert.equal(h.conn.isConnected, false);
+            assert.equal(h.conn._jobInProcess.size, 0);
+            assert.equal(h.conn._jobQueue.length, 0);
+            assert.equal(h.frames.length, 3, 'waiting PDU must never be written');
+            assert.equal(h.timeouts.length, 1);
+            await new Promise(resolve => setTimeout(resolve, 85));
+            assert.equal(h.timeouts.length, 1, 'interrupted in-flight timer must be cancelled');
+        } finally {
+            h.conn.destroy();
+            h.stream.destroy();
+            await Promise.all(pending);
+        }
+    });
+
+    it('ignores a stale timeout callback for an already completed PDU', async () => {
+        const h = await createHarness({ abortOnTimeout: true, timeout: 0 });
+        try {
+            h.conn._onRequestTimeout(65535);
+            assert.equal(h.conn.isConnected, true, 'stale timer must not abort a live session');
+            assert.equal(h.conn._jobQueue.length, 0);
+            assert.equal(h.conn._jobInProcess.size, 0);
+            assert.equal(h.frames.length, 1);
+        } finally {
+            h.conn.destroy();
+            h.stream.destroy();
         }
     });
 
