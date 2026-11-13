@@ -1,0 +1,151 @@
+name: npm stage only (manual)
+
+# This workflow NEVER runs on pull_request, push or tag creation.
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'verify = read-only; stage = upload to npm staging (NOT public)'
+        type: choice
+        required: true
+        default: verify
+        options: [verify, stage]
+      source_sha:
+        description: 'Exact protected master SHA (40 characters)'
+        type: string
+        required: true
+      archive_sha256:
+        description: 'Approved npm tarball SHA-256 (64 lowercase hex)'
+        type: string
+        required: true
+
+concurrency:
+  group: nodes7-npm-alpha2-stage-manual
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify exact master, CI and package (no npm write)
+    if: github.repository == 'Missel2/nodes7' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require manual dispatch, exact master, and completed push CI
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          STAGE_OPERATION: ${{ inputs.operation }}
+          SOURCE_SHA_INPUT: ${{ inputs.source_sha }}
+          ARCHIVE_SHA256_INPUT: ${{ inputs.archive_sha256 }}
+        run: node scripts/release/manual-stage-guard.cjs source
+      - name: Refuse publicly registered alpha.2
+        run: node scripts/release/check-unpublished-version.cjs
+      - name: Install locked production runtime without lifecycle scripts
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Test negative controls for stage source and package admission
+        run: node --test test/release/preflight.test.cjs test/release/manual-stage-guard.test.cjs
+      - name: Build and verify actual archive, SPDX/CycloneDX and canonical hash
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          STAGE_OPERATION: ${{ inputs.operation }}
+          SOURCE_SHA_INPUT: ${{ inputs.source_sha }}
+          ARCHIVE_SHA256_INPUT: ${{ inputs.archive_sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p stage-evidence
+          npm pack --ignore-scripts --json --pack-destination stage-evidence > stage-evidence/pack.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=spdx > stage-evidence/sbom.spdx.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=cyclonedx > stage-evidence/sbom.cdx.json
+          node scripts/release/verify-preflight.cjs stage-evidence
+          node scripts/release/manual-stage-guard.cjs archive
+      - name: Archive review metadata ONLY (no tarball)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodes7-stage-verify-${{ github.run_id }}
+          path: |
+            stage-evidence/pack.json
+            stage-evidence/manifest.json
+            stage-evidence/stage-verified.json
+            stage-evidence/sbom.spdx.json
+            stage-evidence/sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 7
+
+  stage:
+    name: Upload exactly approved alpha.2 to npm STAGING ONLY
+    if: inputs.operation == 'stage' && github.repository == 'Missel2/nodes7' && github.ref == 'refs/heads/master'
+    needs: [verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Maintainer configures required reviewers independently in GitHub.
+    # npm Trusted Publisher MUST match this environment exactly.
+    environment: npm-stage
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Recheck protected master, source and all push CI
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          STAGE_OPERATION: ${{ inputs.operation }}
+          SOURCE_SHA_INPUT: ${{ inputs.source_sha }}
+          ARCHIVE_SHA256_INPUT: ${{ inputs.archive_sha256 }}
+        run: node scripts/release/manual-stage-guard.cjs source
+      - name: Reject if alpha.2 is already public
+        run: node scripts/release/check-unpublished-version.cjs
+      - name: Reinstall locked production runtime
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Rebuild and verify exact archive and license/SBOM evidence
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          STAGE_OPERATION: ${{ inputs.operation }}
+          SOURCE_SHA_INPUT: ${{ inputs.source_sha }}
+          ARCHIVE_SHA256_INPUT: ${{ inputs.archive_sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p stage-evidence
+          npm pack --ignore-scripts --json --pack-destination stage-evidence > stage-evidence/pack.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=spdx > stage-evidence/sbom.spdx.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=cyclonedx > stage-evidence/sbom.cdx.json
+          node scripts/release/verify-preflight.cjs stage-evidence
+          node scripts/release/manual-stage-guard.cjs archive
+      - name: Install pinned npm supporting stage/OIDC (after packing)
+        run: npm install --global npm@11.15.0 --ignore-scripts --no-audit --no-fund
+      - name: Require exact stage-capable CLI
+        shell: bash
+        run: test "$(npm --version)" = '11.15.0'
+      - name: Stage exact validated tarball via stage-only OIDC (no approve)
+        shell: bash
+        env:
+          STAGE_OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+          test "$STAGE_OPERATION" = 'stage'
+          npm stage publish stage-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --tag=alpha --access=public --ignore-scripts --registry=https://registry.npmjs.org/
+          echo 'NODES7_STAGE_SUBMITTED_NOT_APPROVED'
+          echo 'Review stage ID and digest on npmjs.com; approval requires separate human 2FA.'
