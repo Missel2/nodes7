@@ -33,7 +33,7 @@ function fixture() {
     files: [
       'LICENSE', 'README.md', 'package.json',
       'src/index.js', 'src/s7endpoint.js', 'src/s7connection.js',
-      'src/s7item.js', 'src/s7itemGroup.js',
+      'src/s7item.js', 'src/s7itemGroup.js', 'src/s7address.js',
     ].map(path => ({path})),
   }];
   const spdx = {

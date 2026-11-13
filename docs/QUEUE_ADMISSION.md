@@ -1,6 +1,6 @@
 # Optional S7Connection waiting-queue admission (N7-008/011)
 
-**Status: proposed on [PR #24](https://github.com/Missel2/nodes7/pull/24), not merged or independently released.** This is an opt-in *per-S7Connection* request admission contract. Current published `@missel2/nodes7@0.1.0-alpha.1` and the independently published Node-RED wrapper **do not inherit this change**. Physical HIL-S7-003/004/005/006 is PENDING_HARDWARE.
+**Status: human-approved [PR #24](https://github.com/Missel2/nodes7/pull/24) merged into protected master as `777694c0789e3eae9020b59dfe401a93244cd2b8`; still absent from published `alpha.1`. A separate `alpha.2` source candidate does not imply publication.** This is an opt-in *per-S7Connection* request admission contract. Current published `@missel2/nodes7@0.1.0-alpha.1` and the independently published Node-RED wrapper **do not inherit this change**. Physical HIL-S7-003/004/005/006 is PENDING_HARDWARE.
 
 ## Why `maxJobs` is not enough
 

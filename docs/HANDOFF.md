@@ -1,3 +1,31 @@
+## Release preparation update — 2026-11-13 (development only)
+
+- Protected nodes7 `master` is `1c24ed354da03748013b69bb415186aed43f034d`,
+  after separate human-approved and post-merge-verified PRs #31 and #33.
+- Proposed **UNPUBLISHED** `@missel2/nodes7@0.1.0-alpha.2` is prepared
+  in [Draft PR #34](https://github.com/Missel2/nodes7/pull/34) on
+  `release/n7-alpha2-readonly-candidate-20261113`, without a merge,
+  staging/publication, dist-tag change, GitHub tag/release, or external PLC
+  connection. Published `alpha.1` remains immutable.
+- A test-only original-red commit `554137053be6a7c1f7a1eddcdfadc0b649f42163`
+  proved the alpha.1 identity must be rejected: both Ubuntu/Windows Node 22
+  public-contract tests correctly failed, while their previous 299 unit tests
+  passed; the initial release preflight showed two version-guard failures.
+- Candidate identity (root manifest+lock) retains the **same 336 resolved**
+  dependency entries and the previous runtime `iso-on-tcp@0.1.0`. Its
+  read-only preflight must verify all archive and SBOM hashes on its final
+  exact head; a new Windows/Linux **packed** consumer CI installs the actual
+  tarball in a disposable environment. CI is evidence, not release approval.
+- [ALPHA2_RELEASE_NOTES.md](ALPHA2_RELEASE_NOTES.md) describes protocol
+  behavior changes, risk boundaries and remaining issues; [RELEASE_PREFLIGHT.md](RELEASE_PREFLIGHT.md)
+  defines separate source merge, npm stage, npm stage approval and downstream
+  Contrib alias/lock gates. The existing [Contrib Draft PR #52](https://github.com/Missel2/node-red-contrib-s7/pull/52)
+  is release planning only, not a dependency change.
+- No physical HIL-S7-001..007 performed; no OT network, Node-RED host
+  patch, automatic merge or npm registry write authorized by this work.
+
+---
+
 # Development handoff — nodes7
 
 ## Completed (human-approved merges)

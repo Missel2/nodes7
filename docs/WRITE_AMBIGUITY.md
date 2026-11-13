@@ -107,3 +107,17 @@ This document does not authorize npm publishing, deployment or physical
 read/write testing. The human maintainer must separately approve both any
 future merge and industrial validation. Source/test work was AI-assisted,
 using synthetic publicly safe fixtures only.
+
+## Subsequent generic address qualification (N7-032)
+
+The historical scope of PR #31's direct `writeArea()` guard above is
+accurate for that merge. Subsequently, [human-approved PR #33](https://github.com/Missel2/nodes7/pull/33)
+was squash-merged to protected `master` as
+`1c24ed354da03748013b69bb415186aed43f034d`: it extends 24-bit
+S7ANY admission to public byte/bit `readVars()`/`writeVars()` items,
+complete `readArea()` spans and `S7ItemGroup` batches, with
+same-test original-red/green, a negative mutation and synthetic S7Comm.
+The full contract and special-transport limits are in
+[S7ANY_ADDRESS_SPANS.md](S7ANY_ADDRESS_SPANS.md).
+Neither the published `alpha.1` nor physical HIL results are changed by
+that source merge; prerelease `alpha.2` remains a separate human gate.
