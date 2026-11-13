@@ -14,6 +14,7 @@ const isoOnTcp = require('iso-on-tcp');
 const S7Item = require('./s7item');
 const S7Connection = require('./s7connection.js');
 const NodeS7Error = require('./errors.js');
+const { byteSpan, wireAddress } = require('./s7address.js');
 
 const CONN_DISCONNECTED = 0;
 const CONN_CONNECTING = 1;
@@ -584,16 +585,15 @@ class S7Endpoint extends EventEmitter {
             throw new NodeS7Error('ERR_NOT_CONNECTED', "Not connected");
         }
 
-        let arr = [];
+        // Validate the ENTIRE batch before sending any item.
+        const arr = [];
         for (const item of items) {
-            //first 3 bits for bit address is irrelevant for transports other than BIT
-            let bitAddr = item.transport === constants.proto.transport.BIT;
             arr.push({
                 syntax: constants.proto.syntax.S7ANY,
                 area: item.area,
                 db: item.db,
                 transport: item.transport,
-                address: bitAddr ? item.address : item.address << 3,
+                address: wireAddress(item, 'readVars'),
                 length: item.length
             });
         }
@@ -619,17 +619,11 @@ class S7Endpoint extends EventEmitter {
             throw new NodeS7Error('ERR_NOT_CONNECTED', "Not connected");
         }
 
-        // Upstream st-one-io/nodes7 PR #18: normalize the read byte address
-        // before adding PDU offsets. Reject invalid inputs before any read.
-        // Non-empty numeric strings remain accepted for caller compatibility.
-        const addressInput = typeof address === 'number' ||
-            (typeof address === 'string' && address.trim().length > 0);
-        const byteAddress = addressInput ? Number(address) : NaN;
-        if (!Number.isSafeInteger(byteAddress) || byteAddress < 0) {
-            throw new NodeS7Error('ERR_INVALID_ARGUMENT',
-                'Invalid read byte address: expected a nonnegative safe integer');
-        }
-        address = byteAddress;
+        // Validate the ENTIRE read range before any of its multiple PDUs.
+        // Preserve numeric-string caller compatibility (upstream #18).
+        const readSpan = byteSpan(address, length, 'readArea');
+        address = readSpan.address;
+        length = readSpan.length;
 
         let maxPayload = this._pduSize - 18; //protocol overhead
         let requests = [];
@@ -756,15 +750,12 @@ class S7Endpoint extends EventEmitter {
 
         let param = [], data = [];
         for (const item of items) {
-            //first 3 bits for bit address is irrelevant for transports other than BIT
-            let bitAddr = item.transport === constants.proto.transport.BIT;
-
             param.push({
                 syntax: constants.proto.syntax.S7ANY,
                 area: item.area,
                 db: item.db,
                 transport: item.transport,
-                address: bitAddr ? item.address : item.address << 3,
+                address: wireAddress(item, 'writeVars'),
                 length: item.length
             });
             data.push({

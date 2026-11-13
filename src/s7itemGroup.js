@@ -13,6 +13,7 @@ const debug = util.debuglog('nodes7');
 const S7Item = require('./s7item.js');
 const S7Endpoint = require('./s7endpoint.js');
 const NodeS7Error = require('./errors.js');
+const { byteSpan } = require('./s7address.js');
 
 class S7ItemGroup extends EventEmitter {
 
@@ -92,6 +93,12 @@ class S7ItemGroup extends EventEmitter {
 
         if (!items.length) {
             return;
+        }
+
+        // Validate all tag spans before preparing or sending any read PDU.
+        // A later invalid item must not allow an earlier read to escape.
+        for (const item of items) {
+            byteSpan(item.offset, item.byteLength, 'S7ItemGroup read');
         }
 
         //sort them according to our rules
@@ -478,6 +485,8 @@ class S7ItemGroup extends EventEmitter {
                 item = new S7Item(tag, addr);
             }
 
+            // All requested items are checked before reqPackets is dispatched.
+            byteSpan(item.offset, item.byteLength, 'S7ItemGroup write');
             let buf = item.getWriteBuffer(value);
             let reqItemLength = overheadPerItem + buf.length;
 
@@ -499,7 +508,7 @@ class S7ItemGroup extends EventEmitter {
             reqItems.push({
                 area: item.areaCode,
                 db: item.dbNumber,
-                address: bitAddr ? (item.offset << 3) + item.bitOffset : item.offset,
+                address: bitAddr ? item.offset * 8 + item.bitOffset : item.offset,
                 transport: bitAddr ? constants.proto.transport.BIT : item.readTransportCode,
                 dataTransport: item.writeTransportCode,
                 data: buf,
