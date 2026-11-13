@@ -490,7 +490,12 @@ class S7Connection extends EventEmitter {
             let errCode = resMsg && resMsg.param && resMsg.param.errorCode;
             if (errCode != constants.proto.error.OK) {
                 let errDesc = constants.proto.errorCodeDesc[errCode] || '<Unknown error code>'
-                throw new NodeS7Error(errCode, `Unexpected error code reply on userdata response [${errCode}]: "${errDesc}"`);
+                // Preserve the PLC UserData return code for callers without
+                // changing the original protocol error classification.
+                // Inspired by st-one-io/nodes7 PR #18 (Julia Schwartz).
+                const returnCode = resMsg && resMsg.data && resMsg.data.returnCode;
+                const info = typeof returnCode === 'number' ? { returnCode } : undefined;
+                throw new NodeS7Error(errCode, `Unexpected error code reply on userdata response [${errCode}]: "${errDesc}"`, info);
             }
 
             seqNum = resMsg.param.sequenceNumber;

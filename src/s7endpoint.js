@@ -619,6 +619,18 @@ class S7Endpoint extends EventEmitter {
             throw new NodeS7Error('ERR_NOT_CONNECTED', "Not connected");
         }
 
+        // Upstream st-one-io/nodes7 PR #18: normalize the read byte address
+        // before adding PDU offsets. Reject invalid inputs before any read.
+        // Non-empty numeric strings remain accepted for caller compatibility.
+        const addressInput = typeof address === 'number' ||
+            (typeof address === 'string' && address.trim().length > 0);
+        const byteAddress = addressInput ? Number(address) : NaN;
+        if (!Number.isSafeInteger(byteAddress) || byteAddress < 0) {
+            throw new NodeS7Error('ERR_INVALID_ARGUMENT',
+                'Invalid read byte address: expected a nonnegative safe integer');
+        }
+        address = byteAddress;
+
         let maxPayload = this._pduSize - 18; //protocol overhead
         let requests = [];
         for (let ptr = 0; ptr < length; ptr += maxPayload) {
