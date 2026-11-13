@@ -1,9 +1,11 @@
 # Next independent nodes7 alpha candidate — read-only qualification
 
-**Status 2026-11-13: `0.1.0-alpha.2` is a SOURCE-ONLY UNPUBLISHED
-CANDIDATE in [Draft PR #34](https://github.com/Missel2/nodes7/pull/34).
-It is not merged, staged, published, tagged, installed into Node-RED or
-qualified on physical Siemens CPUs.** The immutable published
+**Status 2026-11-13: `0.1.0-alpha.2` source-only is merged into protected
+master after PRs #34/#35 and their successful post-merge CI.
+The package is still UNPUBLISHED, not installed into Node-RED and not
+qualified on physical Siemens CPUs.** The new direct manual publication
+procedure is [documented here](NPM_PUBLISH_GITHUB_ACTION.md) and is
+proposed in a separate Draft PR. Merging the workflow alone publishes nothing. The immutable published
 `@missel2/nodes7@0.1.0-alpha.1` remains separate. Historical first-alpha
 setup in older references is not a request to redo its first-package
 bootstrap or create a new `latest` placeholder.
@@ -11,11 +13,12 @@ bootstrap or create a new `latest` placeholder.
 ## Candidate identity and isolated source provenance
 
 - The source baseline is protected `master`
-  [`1c24ed354da03748013b69bb415186aed43f034d`](https://github.com/Missel2/nodes7/commit/1c24ed354da03748013b69bb415186aed43f034d),
-  after independently authorized PRs #31/#33 and their post-merge CI.
+  [`2d0120c5fa9bb20c8be6fb9716958de2e7f15747`](https://github.com/Missel2/nodes7/commit/2d0120c5fa9bb20c8be6fb9716958de2e7f15747),
+  after separately authorized PRs #34/#35. The proposed manual release
+  workflow would create a further master commit when independently merged.
 - Proposed exact package is `@missel2/nodes7@0.1.0-alpha.2`, public-scope
-  metadata and **`alpha`** dist-tag only after separately approved
-  staging and 2FA-backed publication. A package version in a Git branch
+  metadata and **`alpha`** dist-tag only after a new conscious manual
+  **public** release decision through the approved GitHub workflow. A package version in a Git branch
   is not a registry artifact. **Never** move `latest` implicitly.
 - Manifest and root lockfile version must match exactly; every existing
   resolved dependency entry, tarball URL and integrity stays unchanged.
@@ -72,20 +75,23 @@ bootstrap or create a new `latest` placeholder.
 
 | Gate | Current state |
 | --- | --- |
-| Squash merge of Draft PR #34 | **NOT APPROVED** |
-| New protected master SHA and post-merge CI | Not yet established |
+| Source-only squash merges of PRs #34/#35 | **COMPLETE**, post-merge CI verified |
+| Protected master SHA and post-merge CI | `2d0120c5fa9bb20c8be6fb9716958de2e7f15747`, 16/16 checks passed |
 | Final archive and SBOM source SHA / digests | Gather only from exact CI candidate; must re-check after merge |
 | npm account/scope owner, GPL/corresponding source and private disclosure review | Pending maintainer decision |
-| New `alpha.2` npm stage | **NOT APPROVED**, must identify exact package/version/source and digest |
-| npm staged approval and release (2FA) | **NOT APPROVED**, separate from stage |
+| Legacy npm staging path | **Superseded by direct-publication PR**; no stage performed |
+| Direct public npm publish of alpha.2 | **NOT APPROVED OR EXECUTED**; a new explicit GitHub `publish` dispatch is mandatory |
 | Contrib alias/lock update and its source merge | **NOT APPROVED**, wait for actually published library version |
 | Contrib npm prerelease staging and publication | **NOT APPROVED**, independently controlled |
 | Physical Siemens HIL | **PENDING_HARDWARE** |
 
-After any separately approved stage, compare stage ID and immutable bytes
-against the authorized candidate; stop for any mismatch. Public approval
-needs a second explicit maintainer decision with 2FA and cannot silently
-reuse an existing published tarball. Only after independently verifying a
+Before public GitHub publication, reverify exact protected master, all
+fresh green push checks, the fixed archive digest, the package identity
+and absence of an existing public version. A human must explicitly select
+`publish`; a PR merge alone is never release permission. Review any
+preexisting privately staged alpha.2 candidate before starting.
+After publishing, independently verify the public archive and provenance;
+a failed job is not proof publication failed, so never blindly retry. Only after independently verifying a
 downloaded public `alpha.2` archive should a new Contrib PR update
 `@st-one-io/nodes7` npm alias and the **actual registry-derived**
 SHA-512-locked `package-lock.json`; then run unmodified Node-RED installed
