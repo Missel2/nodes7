@@ -8,6 +8,7 @@
 const assert = require('assert').strict;
 const { Duplex } = require('stream');
 const { once } = require('events');
+const net = require('net');
 const S7Connection = require('../../src/s7connection');
 const constants = require('../../src/constants.json');
 
@@ -91,6 +92,7 @@ describe('S7Connection timeout + late response (safe opt-in regression)', () => 
             assert.equal(h.frames.length, 2, 'only setup and first PDU were sent');
             assert.equal(h.errors.length, 0);
             assert.equal(h.timeouts.length, 1, 'one timeout event');
+            assert.equal(h.stream.destroyed, true, 'opt-in timeout closes supplied stream');
         } finally {
             h.conn.destroy();
             h.stream.destroy();
@@ -134,6 +136,66 @@ describe('S7Connection timeout + late response (safe opt-in regression)', () => 
             } finally {
                 stream.destroy();
             }
+        }
+    });
+
+    it('closes the actual loopback TCP peer after timeout without sending queued work', async () => {
+        const wire = [];
+        let peer;
+        let peerClosed = false;
+        const errors = [];
+        const server = net.createServer(socket => {
+            peer = socket;
+            socket.on('close', () => { peerClosed = true; });
+            socket.on('data', chunk => {
+                wire.push(Buffer.from(chunk));
+                if (wire.length === 1) socket.write(SETUP_REPLY);
+            });
+        });
+        let client;
+        let conn;
+        let first;
+        let waiting;
+        try {
+            await new Promise((resolve, reject) => {
+                server.once('error', reject);
+                server.listen(0, '127.0.0.1', resolve);
+            });
+            client = net.connect({ host: '127.0.0.1', port: server.address().port });
+            await once(client, 'connect');
+            conn = new S7Connection(client, {
+                maxJobs: 1, maxQueuedJobs: 1, timeout: 100, abortOnTimeout: true
+            });
+            conn.on('error', e => errors.push(e));
+            const ready = once(conn, 'connect');
+            conn.connect();
+            await ready;
+
+            const waitingPayload = readRequest();
+            first = observed(conn.sendRaw(readRequest()));
+            waiting = observed(conn.sendRaw(waitingPayload));
+            await waitFor(() => wire.length >= 2);
+            const beforeTimeoutWire = Buffer.concat(wire);
+            const [firstResult, waitingResult] = await Promise.all([first, waiting]);
+
+            assert.equal(firstResult.error && firstResult.error.code, 'ERR_TIMEOUT');
+            assert.equal(waitingResult.error && waitingResult.error.code, 'ERR_INTERRUPTED');
+            assert.equal(Object.prototype.hasOwnProperty.call(waitingPayload.header, 'pduReference'), false);
+            assert.equal(conn._jobQueue.length, 0);
+            assert.equal(conn._jobInProcess.size, 0);
+            assert.equal(conn.isConnected, false);
+            assert.equal(client.destroyed, true, 'the TCP client must close without fixture cleanup');
+            await waitFor(() => peerClosed);
+            assert.equal(Buffer.compare(Buffer.concat(wire), beforeTimeoutWire), 0,
+                'TCP peer must receive no additional queued PDU');
+            assert.equal(errors.length, 0);
+        } finally {
+            if (conn) conn.destroy();
+            if (client) client.destroy();
+            if (peer) peer.destroy();
+            if (first) await first;
+            if (waiting) await waiting;
+            if (server.listening) await new Promise(resolve => server.close(resolve));
         }
     });
 
