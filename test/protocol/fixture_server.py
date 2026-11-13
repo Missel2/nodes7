@@ -29,6 +29,8 @@ def main():
     server = Server(log=False, max_clients=2)
     # The pure-Python server retains its own writable bytearray copy.
     server.register_area(SrvArea.DB, 1, synthetic_db)
+    # Independent disposable 1024-byte scratch space for multi-PDU write/readback.
+    server.register_area(SrvArea.DB, 2, bytearray(1024))
     signal.signal(signal.SIGTERM, request_stop)
     signal.signal(signal.SIGINT, request_stop)
     try:

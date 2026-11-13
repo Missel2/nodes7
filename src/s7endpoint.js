@@ -794,11 +794,33 @@ class S7Endpoint extends EventEmitter {
             throw new NodeS7Error('ERR_NOT_CONNECTED', "Not connected");
         }
 
+        // A string byte address must be normalized before adding PDU offsets.
+        // Validate before sending any chunk: fixing only the slice end index
+        // could otherwise write previously omitted data to the wrong address.
+        const addressInput = typeof address === 'number' ||
+            (typeof address === 'string' && address.trim().length > 0);
+        const byteAddress = addressInput ? Number(address) : NaN;
+        if (!Number.isSafeInteger(byteAddress) || byteAddress < 0) {
+            throw new NodeS7Error('ERR_INVALID_ARGUMENT',
+                'Invalid write byte address: expected a nonnegative safe integer');
+        }
+        // S7ANY encodes a bit address in 24 bits. writeVars() converts
+        // byte addresses with << 3, which truncates to a 32-bit integer;
+        // high but safe JS integers can otherwise wrap onto another byte.
+        // Validate the COMPLETE span before sending any of its PDUs.
+        const maxS7AnyByteAddress = Math.floor(0xffffff / 8);
+        const dataLength = data.length;
+        if (byteAddress > maxS7AnyByteAddress ||
+            (dataLength > 0 && dataLength - 1 > maxS7AnyByteAddress - byteAddress)) {
+            throw new NodeS7Error('ERR_INVALID_ARGUMENT',
+                'Write byte range exceeds 24-bit S7ANY address field');
+        }
+        address = byteAddress;
+
         let maxPayload = this._pduSize - 28; //protocol overhead
         let requests = [];
-        let dataLength = data.length;
         for (let ptr = 0; ptr < dataLength; ptr += maxPayload) {
-            let chunk = data.slice(ptr, Math.min(dataLength - ptr, maxPayload))
+            let chunk = data.slice(ptr, Math.min(ptr + maxPayload, dataLength))
             let item = [{
                 area, db,
                 address: address + ptr,
