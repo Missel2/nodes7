@@ -34,6 +34,31 @@ HIL-S7-003 and HIL-S7-006 remain **PENDING_HARDWARE**.
   ledger**; callers cannot reliably derive a byte-level committed range
   from an overall error.
 
+## S7ANY address-span admission
+
+A classic S7ANY WRITE_VAR item encodes its starting *bit* address in a
+24-bit field. For byte-oriented writes, the highest encodable starting byte
+address is `0x1fffff` (2,097,151). The entire requested byte range must fit
+within the same field: a write starting at the last legal byte may contain
+only one byte. This is a wire-encoding limit, **not** a guarantee that any
+particular PLC has that much memory.
+
+Before this additional N7-029 guard, `writeVars()` used
+`item.address << 3`: a safe JavaScript integer such as `2 ** 29` could
+become bit address zero after 32-bit coercion, allowing a false success
+for a write aimed at a different address. The revised `writeArea()`
+checks the whole range **before submitting any PDU**, rejects out-of-range
+or crossing spans with `ERR_INVALID_ARGUMENT`, and still accepts the
+last legal one-byte address. Synthetic tests first reproduced the missing
+rejections on the unchanged PR implementation on both Windows and Linux.
+
+This guard covers the direct byte-area write methods handled by
+`writeArea()`; it must not be advertised as general validation of all
+low-level `writeVars()`, read operations or `S7ItemGroup` address paths.
+Other address paths and multi-item PDU padding remain independent
+qualification work under protocol Issue #16. Existing correct-range
+writes are otherwise unchanged.
+
 ## Deterministic test scenarios
 
 At a negotiated PDU size of 240 bytes, a 600-byte write beginning at
