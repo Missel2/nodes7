@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {createRequire} = require('node:module');
-const {spawnSync} = require('node:child_process');
+const {spawnSync, execFileSync} = require('node:child_process');
 const {verifyPackage} = require('../ci/check-package.cjs');
 
 const root = path.resolve(__dirname, '../..');
@@ -118,6 +118,24 @@ async function main() {
         assert.deepEqual(accepted, Buffer.from([0x21]));
         assert.equal(submitted, 1);
 
+        // Archive only non-executable, vendor-neutral metadata; the actual
+        // pre-release tarball never leaves the ephemeral runner.
+        const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
+            cwd: root, encoding: 'utf8', timeout: 10000
+        }).trim();
+        if (process.env.SOURCE_SHA) assert.equal(sourceCommit, process.env.SOURCE_SHA);
+        const outputFolder = path.join(root, 'release-evidence');
+        fs.mkdirSync(outputFolder, {recursive: true});
+        const evidence = {
+            schemaVersion: 1,
+            sourceCommit,
+            package: {name, version, archiveSha256: digest,
+                archiveIntegrity: info.integrity, fileCount: audit.length},
+            files: audit,
+            runnerPlatform: process.platform
+        };
+        fs.writeFileSync(path.join(outputFolder, 'packed-consumer.json'),
+            JSON.stringify(evidence, null, 2) + '\n', 'utf8');
         console.log('NODES7_ALPHA2_PACKED_CONSUMER_PASS');
         console.log('NODES7_ALPHA2_PACKED_SHA256=' + digest);
         console.log('NODES7_ALPHA2_INSTALLED_VERSION=' + version);
