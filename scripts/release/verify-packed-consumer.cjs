@@ -54,6 +54,21 @@ async function main() {
         assert.equal(info.integrity, integrity);
         const digest = crypto.createHash('sha256').update(bytes).digest('hex');
 
+        // Diagnose whether cross-OS archive differences are in file
+        // *contents* versus tar metadata/modes. Source is public synthetic
+        // code only, and the per-file checksums reveal no PLC values.
+        const audit = info.files.map(entry => {
+            const file = path.join(root, entry.path);
+            const source = fs.readFileSync(file);
+            return {
+                path: entry.path,
+                size: source.length,
+                packMode: entry.mode,
+                sourceSha256: crypto.createHash('sha256').update(source).digest('hex')
+            };
+        }).sort((a, b) => a.path.localeCompare(b.path, 'en'));
+        console.log('NODES7_ALPHA2_PACK_FILE_AUDIT=' + JSON.stringify(audit));
+
         fs.writeFileSync(path.join(consumerDirectory, 'package.json'),
             JSON.stringify({name: 'nodes7-release-isolated-consumer', version: '1.0.0',
                 private: true}, null, 2) + '\n', {mode: 0o600});
