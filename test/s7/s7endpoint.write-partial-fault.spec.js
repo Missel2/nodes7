@@ -152,6 +152,8 @@ async function faultCase({ secondApplied, autoReconnect }) {
             rejection = e;
         }
         assert.ok(rejection, 'unacknowledged second PDU must never report complete write success');
+        assert.equal(rejection && rejection.code, 'ERR_INTERRUPTED',
+            'interrupted multi-PDU write must report loss, never successful completion');
         assert.doesNotMatch(String(rejection), /did not settle/, 'a hanging write is not a passing fault');
         await waitFor(() => sawFirstPeerClose);
         assert.equal(acked, 1, 'only first PDU has an acknowledged WRITE_VAR response');
@@ -195,6 +197,50 @@ async function faultCase({ secondApplied, autoReconnect }) {
         if (server.listening) await new Promise(resolve => server.close(resolve));
     }
 }
+
+describe('N7-029 explicitly rejected PDU with other chunks already applied (synthetic)', () => {
+    it('rejects the whole write without erasing successful nonadjacent chunks', async () => {
+        const constants = require('../../src/constants.json');
+        const endpoint = new S7Endpoint({ autoReconnect: 0 });
+        endpoint._connectionState = 2;
+        endpoint._pduSize = 240;
+        const actualMemory = Buffer.alloc(1024, 0xc5);
+        const submissions = [];
+        endpoint._connection = {
+            async requestWriteVar(items, data) {
+                assert.equal(items.length, 1);
+                assert.equal(data.length, 1);
+                const index = submissions.length;
+                const address = items[0].address / 8;
+                const bytes = Buffer.from(data[0].data);
+                submissions.push({ index, address, bytes });
+                // PDU 2 is explicitly NACKed; first and third can still write.
+                if (index === 1) return [{ returnCode: constants.proto.retval.DATA_ACCESS_FAULT }];
+                bytes.copy(actualMemory, address);
+                return [{ returnCode: constants.proto.retval.DATA_OK }];
+            }
+        };
+
+        try {
+            await assert.rejects(
+                endpoint.writeDB(2, '100', PAYLOAD),
+                error => error && error.code === constants.proto.retval.DATA_ACCESS_FAULT,
+                'an explicit WRITE_VAR NACK must reject the complete logical write'
+            );
+            assert.deepEqual(submissions.map(s => [s.address, s.bytes.length]),
+                [[100, 212], [312, 212], [524, 176]]);
+            assert.deepEqual(actualMemory.subarray(100, 312), PAYLOAD.subarray(0, 212));
+            assert.ok(actualMemory.subarray(312, 524).every(v => v === 0xc5),
+                'a NACKed chunk was not applied in this controlled scenario');
+            assert.deepEqual(actualMemory.subarray(524, 700), PAYLOAD.subarray(424),
+                'a later concurrent chunk may still be applied despite the earlier NACK');
+            assert.equal(submissions.length, 3, 'no automatic retry after NACK');
+        } finally {
+            endpoint._connectionState = 0;
+            endpoint._connection = null;
+        }
+    });
+});
 
 describe('N7-029 ambiguous multi-PDU write over disposable TCP', () => {
     it('rejects after PDU 1 ACK and PDU 2 disconnect before apply; never sends PDU 3', async () => {
