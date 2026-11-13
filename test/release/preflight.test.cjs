@@ -74,6 +74,8 @@ test('reject accidental CI files, missing runtime and duplicate archive entries'
     ...pack[0].files, {path: '.github/workflows/verification.yml'},
   ]}]));
   assert.throws(() => verifyPackage([{...pack[0], files: pack[0].files.filter(x => x.path !== 'src/index.js')}]));
+  assert.throws(() => verifyPackage([{...pack[0], files: pack[0].files.filter(x => x.path !== 'src/s7address.js')}]),
+    /Missing mandatory distribution file/, 'S7ANY guard module must be packaged');
   assert.throws(() => verifyPackage([{...pack[0], files: [
     ...pack[0].files, {...pack[0].files[0]},
   ]}]));

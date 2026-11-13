@@ -52,6 +52,16 @@ bootstrap or create a new `latest` placeholder.
    address fail-before-send behavior. This is a package-contract smoke,
    **not an installed Node-RED wrapper compatibility test** and not an
    independent public-npm-tarball test.
+   The Git checkout must preserve canonical LF for every packed source file
+   (`.gitattributes`), rather than allowing Windows `core.autocrlf` to
+   rewrite source bytes. Both hosted jobs archive *checksum-only* file
+   metadata, never the executable prerelease tarball. A dedicated
+   `Packed archive reproducibility (Ubuntu/Windows, Node 22)` job must
+   compare path, mode, content SHA-256, tarball SHA-256 and SHA-512 for
+   **byte-for-byte identical output** before a source-merge decision.
+   An earlier run before canonical LF normalization exposed a real
+   cross-OS CRLF divergence despite successful installs; do not waive
+   this gate.
 5. **Risk and review:** read [candidate release notes](ALPHA2_RELEASE_NOTES.md),
    upstream/source credits, [protocol debt Issue #16](https://github.com/Missel2/nodes7/issues/16)
    and named HIL gaps. Verify a separate human source merge decision; then

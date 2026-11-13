@@ -11,6 +11,14 @@
   proved the alpha.1 identity must be rejected: both Ubuntu/Windows Node 22
   public-contract tests correctly failed, while their previous 299 unit tests
   passed; the initial release preflight showed two version-guard failures.
+- The candidate exposed a real cross-platform reproducibility issue:
+  Windows initially checked out CRLF for packed sources and created a
+  different tarball digest. Canonical LF `.gitattributes` and an enforced
+  cross-OS SHA-256/SHA-512 comparison now guard release packaging.
+  Earlier candidate head `0fbfaef3690ac0aa87622de4b2c19a1b9a8e971d`
+  achieved matching archive SHA-256
+  `11327c208ad99dae5eca2fd4a6fd9a83e17637b8eb4ad1f2018c6ba98bd6c81e`
+  and **17/17** successful checks. **Revalidate after this docs commit.**
 - Candidate identity (root manifest+lock) retains the **same 336 resolved**
   dependency entries and the previous runtime `iso-on-tcp@0.1.0`. Its
   read-only preflight must verify all archive and SBOM hashes on its final

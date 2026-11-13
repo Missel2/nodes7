@@ -58,7 +58,10 @@ and does not automatically include these changes.
   predates this release-only metadata PR.
 - Archive controls: exactly `src/` and npm mandatory metadata/README/
   LICENSE, with `src/s7address.js` included; actual packed tarball
-  installed in disposable clean Windows/Linux Node 22 consumers.
+  installed in disposable clean Windows/Linux Node 22 consumers. A
+  canonical-LF `.gitattributes` policy and a **separate cross-OS
+  identical-archive SHA-256/SHA-512 check** prevent a Windows CRLF
+  checkout from accidentally yielding different prerelease bytes.
 - The exact candidate SHA, tarball SHA-256/SHA-512, SBOM digest and
   public npm registry absence must be attached to the **final PR head**
   and rechecked after any approved merge. No CI run alone authorizes
