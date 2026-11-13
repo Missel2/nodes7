@@ -1,0 +1,7 @@
+# Canonical npm source archive bytes on Windows and Linux.
+# Do not let Git checkout core.autocrlf change the packed source data.
+# Restrict this policy to files actually included in npm's files=src/ archive.
+src/** text eol=lf
+package.json text eol=lf
+README.md text eol=lf
+LICENSE text eol=lf

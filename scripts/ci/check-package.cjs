@@ -5,15 +5,15 @@ const fs = require('node:fs');
 const requiredFiles = [
   'LICENSE', 'README.md', 'package.json',
   'src/index.js', 'src/s7endpoint.js', 'src/s7connection.js',
-  'src/s7item.js', 'src/s7itemGroup.js',
+  'src/s7item.js', 'src/s7itemGroup.js', 'src/s7address.js',
 ];
 
 function verifyPackage(packs) {
   assert.ok(Array.isArray(packs) && packs.length === 1, 'Expected exactly one npm archive');
   const pkg = packs[0];
   assert.equal(pkg.name, '@missel2/nodes7', 'Unexpected package scope');
-  assert.equal(pkg.version, '0.1.0-alpha.1', 'Unexpected alpha version');
-  assert.equal(pkg.filename, 'missel2-nodes7-0.1.0-alpha.1.tgz');
+  assert.equal(pkg.version, '0.1.0-alpha.2', 'Unexpected alpha version');
+  assert.equal(pkg.filename, 'missel2-nodes7-0.1.0-alpha.2.tgz');
   assert.ok(Array.isArray(pkg.files), 'Missing archive file manifest');
   const paths = pkg.files.map(entry => entry.path);
   assert.equal(new Set(paths).size, paths.length, 'Duplicate package file');

@@ -1,6 +1,6 @@
 # S7ANY 24-bit address-span admission (N7-032)
 
-**Status: candidate on draft PR #33; no merge or npm release.** This document
+**Status: source merged in human-approved PR #33, protected master `1c24ed354da03748013b69bb415186aed43f034d`; not included in the previously published npm `alpha.1`. The proposed `alpha.2` remains unreleased.** This document
 records tested software semantics, not industrial controller qualification.
 
 ## Wire limit and address units

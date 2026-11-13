@@ -23,6 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Refuse previously published candidate version (read-only public npm GET)
+        run: node scripts/release/check-unpublished-version.cjs
       - name: Install locked production runtime without package scripts
         run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
       - name: Prove negative release-contract tests
@@ -51,3 +53,58 @@ jobs:
             release-evidence/sbom.cdx.json
           if-no-files-found: error
           retention-days: 7
+
+  packed-consumer:
+    name: Packed alpha consumer (${{ matrix.os }}, Node 22)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pack and install the actual source archive in isolated consumer (no publish)
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/release/verify-packed-consumer.cjs
+      - name: Archive public-source checksums only (no executable package)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodes7-alpha2-packed-${{ matrix.os }}
+          path: release-evidence/packed-consumer.json
+          if-no-files-found: error
+          retention-days: 7
+
+  packed-reproducibility:
+    name: Packed archive reproducibility (Ubuntu/Windows, Node 22)
+    needs: [packed-consumer]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Require both packed-install matrix jobs
+        env:
+          PACKED_RESULT: ${{ needs.packed-consumer.result }}
+        run: test "$PACKED_RESULT" = success
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nodes7-alpha2-packed-*
+          path: release-evidence/cross-os
+      - name: Verify byte-identical source file hashes, modes and npm archives
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/release/verify-cross-os-package.cjs release-evidence/cross-os

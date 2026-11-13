@@ -9,7 +9,7 @@ const {verifyPackage} = require('../ci/check-package.cjs');
 
 const root = path.resolve(__dirname, '../..');
 const EXPECTED_NAME = '@missel2/nodes7';
-const EXPECTED_VERSION = '0.1.0-alpha.1';
+const EXPECTED_VERSION = '0.1.0-alpha.2';
 
 function readJson(filename) {
   return JSON.parse(fs.readFileSync(filename, 'utf8'));
@@ -51,7 +51,7 @@ function verifySbom(spdx, cyclonedx, pkg) {
       'Missing SPDX package: ' + name);
   }
   assert.equal(cyclonedx.bomFormat, 'CycloneDX');
-  assert.equal(cyclonedx.metadata?.component?.purl, 'pkg:npm/%40missel2/nodes7@0.1.0-alpha.1');
+  assert.equal(cyclonedx.metadata?.component?.purl, 'pkg:npm/%40missel2/nodes7@0.1.0-alpha.2');
   assert.ok(Array.isArray(cyclonedx.components) &&
     cyclonedx.components.some(item => item.name === 'iso-on-tcp' && item.version === '0.1.0'),
   'Missing CycloneDX production dependency');
