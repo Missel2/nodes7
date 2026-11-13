@@ -176,6 +176,30 @@ test('actual nodes7 S7Comm connects, reads and writes synthetic DB1', { timeout:
         'byte immediately after the target area must remain unchanged');
     evidence.checks.push('N7-029: real S7Comm multi-PDU WRITE_VAR exact 600-byte readback plus sentinel bytes');
 
+    // N7-032: fail closed BEFORE a read or write could reach a real serialized
+    // S7Comm peer. The in-memory call observer separately proves zero dispatch.
+    // This loopback assertion checks public API errors and healthy follow-up.
+    const badRead = endpoint.readDB(2, 2 ** 29, 1);
+    await assert.rejects(badRead,
+        error => error && error.code === 'ERR_INVALID_ARGUMENT',
+        'wrapped read address must be rejected while COTP is connected');
+    const mixedRead = [
+        { area: 132, db: 2, transport: 2, address: 100, length: 1 },
+        { area: 132, db: 2, transport: 2, address: 0x1fffff, length: 2 }
+    ];
+    await assert.rejects(endpoint.readVars(mixedRead),
+        error => error && error.code === 'ERR_INVALID_ARGUMENT',
+        'an invalid later READ_VAR item must reject the whole batch');
+    const mixedWrite = mixedRead.map(item => ({
+        ...item, dataTransport: 4, data: Buffer.from([0x73])
+    }));
+    await assert.rejects(endpoint.writeVars(mixedWrite),
+        error => error && error.code === 'ERR_INVALID_ARGUMENT',
+        'an invalid later WRITE_VAR item must reject before any write');
+    assert.deepEqual(await endpoint.readDB(2, 100, 3), largeData.subarray(0, 3),
+        'the prior correct bytes and connected S7Comm session remain intact');
+    evidence.checks.push('N7-032: invalid read/generic mixed write addresses rejected; follow-up S7Comm readback intact');
+
     assert.deepEqual(errors, [], 'healthy wire roundtrip must not emit endpoint errors');
     await Promise.race([endpoint.disconnect(), deadline(4000, 'healthy S7 disconnect')]);
     assert.equal(endpoint.isConnected, false, 'clean session disconnect must complete');
