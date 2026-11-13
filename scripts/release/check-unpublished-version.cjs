@@ -30,6 +30,7 @@ const req = https.get(url, {
 });
 req.setTimeout(15000, () => req.destroy(new Error('npm registry GET timeout')));
 req.on('error', error => {
-    console.error('NODES7_ALPHA2_REGISTRY_CHECK_FAILED: ' + error.code);
+    // A network error code is not trusted log text (no log injection).
+    console.error('NODES7_ALPHA2_REGISTRY_CHECK_FAILED (network or TLS error)');
     process.exitCode = 1;
 });
