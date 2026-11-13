@@ -15,7 +15,7 @@ describe('S7Connection timeout-abort mutation sensitivity', () => {
         const root = path.resolve(__dirname, '../..');
         const originalPath = path.join(root, 'src', 's7connection.js');
         const source = fs.readFileSync(originalPath, 'utf8');
-        const needle = 'if (job && this.abortOnTimeout) this.destroy();';
+        const needle = 'if (job && this.abortOnTimeout) {';
         assert.equal(source.split(needle).length, 2, 'Abort mutation anchor must be unique');
 
         const temp = fs.mkdtempSync(path.join(os.tmpdir(), 's7-timeout-mutant-'));
@@ -25,7 +25,7 @@ describe('S7Connection timeout-abort mutation sensitivity', () => {
             fs.cpSync(path.join(root, 'src'), srcDir, { recursive: true });
             fs.mkdirSync(testDir, { recursive: true });
             fs.writeFileSync(path.join(srcDir, 's7connection.js'),
-                source.replace(needle, 'if (false && job && this.abortOnTimeout) this.destroy();'));
+                source.replace(needle, 'if (false && job && this.abortOnTimeout) {'));
             const isolatedTest = path.join(testDir, 's7connection.timeout-characterization.spec.js');
             fs.copyFileSync(path.join(__dirname, 's7connection.timeout-characterization.spec.js'), isolatedTest);
 
