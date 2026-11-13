@@ -158,7 +158,7 @@ describe('N7-032 S7ItemGroup preflight before multi-PDU dispatch', () => {
         const group = new S7ItemGroup(h.endpoint);
         try {
             await assert.rejects(
-                group.writeItems('DB2,X2097151.7.2', [true, false]), invalid
+                group.writeItems('DB2,X2097151.7.2', [[true, false]]), invalid
             );
             assert.equal(h.calls.length, 0);
         } finally {
