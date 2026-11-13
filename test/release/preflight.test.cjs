@@ -8,7 +8,7 @@ const {verifyIdentity, verifySbom} = require('../../scripts/release/verify-prefl
 function fixture() {
   const pkg = {
     name: '@missel2/nodes7',
-    version: '0.1.0-alpha.1',
+    version: '0.1.0-alpha.2',
     license: 'GPL-3.0-or-later',
     main: 'src/index.js',
     files: ['src/'],
@@ -29,7 +29,7 @@ function fixture() {
   };
   const pack = [{
     name: pkg.name, version: pkg.version,
-    filename: 'missel2-nodes7-0.1.0-alpha.1.tgz',
+    filename: 'missel2-nodes7-0.1.0-alpha.2.tgz',
     files: [
       'LICENSE', 'README.md', 'package.json',
       'src/index.js', 'src/s7endpoint.js', 'src/s7connection.js',
@@ -45,7 +45,7 @@ function fixture() {
   };
   const cyclonedx = {
     bomFormat: 'CycloneDX',
-    metadata: {component: {purl: 'pkg:npm/%40missel2/nodes7@0.1.0-alpha.1'}},
+    metadata: {component: {purl: 'pkg:npm/%40missel2/nodes7@0.1.0-alpha.2'}},
     components: [{name: 'iso-on-tcp', version: '0.1.0'}],
   };
   return {pkg, lock, pack, spdx, cyclonedx};
@@ -83,4 +83,18 @@ test('reject incomplete or misidentified software bills of materials', () => {
   const {pkg, spdx, cyclonedx} = fixture();
   assert.throws(() => verifySbom({...spdx, packages: spdx.packages.slice(0, 1)}, cyclonedx, pkg));
   assert.throws(() => verifySbom(spdx, {...cyclonedx, components: []}, pkg));
+});
+
+test('reject already published alpha.1 metadata masquerading as next candidate', () => {
+  const {pkg, lock, pack, spdx, cyclonedx} = fixture();
+  assert.throws(() => verifyIdentity({...pkg, version: '0.1.0-alpha.1'}, lock),
+    /0.1.0-alpha.2|Expected values to be strictly equal/);
+  assert.throws(() => verifyIdentity(pkg, {...lock, version: '0.1.0-alpha.1'}),
+    /0.1.0-alpha.2|Expected values to be strictly equal/);
+  assert.throws(() => verifyPackage([{...pack[0],
+    filename: 'missel2-nodes7-0.1.0-alpha.1.tgz'}]));
+  assert.throws(() => verifySbom(spdx, {
+    ...cyclonedx,
+    metadata: {component: {purl: 'pkg:npm/%40missel2/nodes7@0.1.0-alpha.1'}},
+  }, pkg));
 });

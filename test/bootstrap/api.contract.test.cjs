@@ -13,7 +13,7 @@ test('inherited public exports remain present and callable', () => {
 
 test('independent alpha package preserves the public API entry and GPL declaration', () => {
   assert.equal(pkg.name, '@missel2/nodes7');
-  assert.equal(pkg.version, '0.1.0-alpha.1');
+  assert.equal(pkg.version, '0.1.0-alpha.2');
   assert.equal(pkg.license, 'GPL-3.0-or-later');
   assert.equal(pkg.main, 'src/index.js');
 });
