@@ -58,6 +58,7 @@ class S7Connection extends EventEmitter {
      * @param {object} [opts] configuration options
      * @param {number} [opts.maxJobs] the max number of parallel jobs
      * @param {number} [opts.maxQueuedJobs] maximum waiting requests (nonnegative safe integer); omitted means the historical unlimited queue
+     * @param {boolean} [opts.abortOnTimeout=false] opt-in: stop session and interrupt remaining requests on an in-flight timeout
      * @param {number} [opts.maxPDUSize] the max PDU Size
      * @param {number} [opts.timeout=2000] the timeout for execution of requests. 0 for no timeout
      */
@@ -82,6 +83,10 @@ class S7Connection extends EventEmitter {
         // Distinct from maxJobs: this limits only waiting, not in-flight PDUs.
         // An omitted option keeps the original unlimited behavior.
         this.maxQueuedJobs = opts.maxQueuedJobs === undefined ? null : opts.maxQueuedJobs;
+        if (opts.abortOnTimeout !== undefined && typeof opts.abortOnTimeout !== 'boolean') {
+            throw new NodeS7Error('ERR_INVALID_ARGUMENT', 'abortOnTimeout must be a boolean');
+        }
+        this.abortOnTimeout = opts.abortOnTimeout === true;
         this.maxPDUSize = opts.maxPDUSize || 960;
         this.timeout = opts.timeout !== undefined && !isNaN(opts.timeout) ? opts.timeout : 2000;
 
@@ -241,6 +246,12 @@ class S7Connection extends EventEmitter {
         this._jobInProcess.delete(pdu);
 
         if (job) job.rej(new NodeS7Error('ERR_TIMEOUT', "Request timeout"));
+
+        // Opt-in fail-closed behavior. An expired sent PDU has an unknown
+        // remote outcome: never drain this session's waiting queue on a
+        // late acknowledgment, and never replay an ambiguous write.
+        // destroy() rejects waiting/other in-flight work as ERR_INTERRUPTED.
+        if (job && this.abortOnTimeout) this.destroy();
 
         /**
          * Emitted when a job times out. The job currently in
