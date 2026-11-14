@@ -1,0 +1,145 @@
+name: npm publish alpha (manual)
+
+# A green PR, merge, push or tag does NOT publish. A human must dispatch
+# this workflow on protected master, explicitly selecting "publish".
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'verify = read-only (default); publish = public npm alpha release'
+        type: choice
+        required: true
+        default: verify
+        options: [verify, publish]
+
+concurrency:
+  group: nodes7-npm-alpha2-public-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify exact protected master, CI and immutable alpha archive
+    if: github.repository == 'Missel2/nodes7' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check actual protected master and every required push check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_OPERATION: ${{ inputs.operation }}
+          SOURCE_SHA_INPUT: ${{ github.sha }}
+          ARCHIVE_SHA256_INPUT: '11327c208ad99dae5eca2fd4a6fd9a83e17637b8eb4ad1f2018c6ba98bd6c81e'
+        run: node scripts/release/manual-publish-guard.cjs source
+      - name: Reject if alpha.2 is already publicly registered
+        run: node scripts/release/check-unpublished-version.cjs
+      - name: Install the locked production runtime (no lifecycle scripts)
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Positive and negative release admission tests
+        run: node --test test/release/preflight.test.cjs test/release/manual-publish-guard.test.cjs
+      - name: Build and verify exact tarball, SPDX/CycloneDX and checksum
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          RELEASE_OPERATION: ${{ inputs.operation }}
+          SOURCE_SHA_INPUT: ${{ github.sha }}
+          ARCHIVE_SHA256_INPUT: '11327c208ad99dae5eca2fd4a6fd9a83e17637b8eb4ad1f2018c6ba98bd6c81e'
+        run: |
+          set -euo pipefail
+          mkdir -p publish-evidence
+          npm pack --ignore-scripts --json --pack-destination publish-evidence > publish-evidence/pack.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=spdx > publish-evidence/sbom.spdx.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=cyclonedx > publish-evidence/sbom.cdx.json
+          node scripts/release/verify-preflight.cjs publish-evidence
+          node scripts/release/manual-publish-guard.cjs archive
+      - name: Archive review JSON only (never executable tarball)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodes7-alpha2-publish-verify-${{ github.run_id }}
+          path: |
+            publish-evidence/pack.json
+            publish-evidence/manifest.json
+            publish-evidence/publish-verified.json
+            publish-evidence/sbom.spdx.json
+            publish-evidence/sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: PUBLIC release of exactly approved nodes7 alpha.2
+    if: inputs.operation == 'publish' && github.repository == 'Missel2/nodes7' && github.ref == 'refs/heads/master'
+    needs: [verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Environment must be configured and restricted to master by maintainer.
+    # Remove required reviewers only if one intentional manual dispatch should
+    # be the sole human confirmation.
+    environment: npm-release
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Recheck master against current GitHub CI and exact source
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_OPERATION: ${{ inputs.operation }}
+          SOURCE_SHA_INPUT: ${{ github.sha }}
+          ARCHIVE_SHA256_INPUT: '11327c208ad99dae5eca2fd4a6fd9a83e17637b8eb4ad1f2018c6ba98bd6c81e'
+        run: node scripts/release/manual-publish-guard.cjs source
+      - name: Fail if alpha.2 version exists in public npm registry
+        run: node scripts/release/check-unpublished-version.cjs
+      - name: Install exact locked production runtime
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+      - name: Pack and verify immutable artifact and release evidence again
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          RELEASE_OPERATION: ${{ inputs.operation }}
+          SOURCE_SHA_INPUT: ${{ github.sha }}
+          ARCHIVE_SHA256_INPUT: '11327c208ad99dae5eca2fd4a6fd9a83e17637b8eb4ad1f2018c6ba98bd6c81e'
+        run: |
+          set -euo pipefail
+          mkdir -p publish-evidence
+          npm pack --ignore-scripts --json --pack-destination publish-evidence > publish-evidence/pack.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=spdx > publish-evidence/sbom.spdx.json
+          npm sbom --package-lock-only --omit=dev --sbom-format=cyclonedx > publish-evidence/sbom.cdx.json
+          node scripts/release/verify-preflight.cjs publish-evidence
+          node scripts/release/manual-publish-guard.cjs archive
+      - name: Install pinned npm supporting OIDC (after archive generation)
+        run: npm install --global npm@11.15.0 --ignore-scripts --no-audit --no-fund
+      - name: Require pinned publishing CLI
+        run: test "$(npm --version)" = '11.15.0'
+        shell: bash
+      - name: Publicly publish ONLY verified archive with alpha tag (OIDC)
+        shell: bash
+        env:
+          RELEASE_OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+          test "$RELEASE_OPERATION" = 'publish'
+          npm publish publish-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --tag=alpha --access=public --provenance --ignore-scripts --registry=https://registry.npmjs.org/
+          echo 'NODES7_ALPHA2_PUBLIC_NPM_PUBLISH_SUCCEEDED'
+          echo 'No stage approval is required: the version is now publicly released.'
