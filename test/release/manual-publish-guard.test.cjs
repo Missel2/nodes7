@@ -95,7 +95,10 @@ test('manual publish workflow never triggers without a deliberate dispatch',()=>
   assert.match(wf,/environment: npm-release/);
   assert.equal((wf.match(/id-token: write/g)||[]).length,1);
   assert.doesNotMatch(wf.slice(0,wf.indexOf('\n  publish:\n')),/id-token: write/);
-  assert.match(wf,/npm publish publish-evidence\/missel2-nodes7-0\.1\.0-alpha\.2\.tgz/);
+  // A bare relative tarball spec is parsed as a GitHub shorthand by npm's package-arg.
+  // The explicit ./ prefix is mandatory for publish, not just for npm install.
+  assert.match(wf,/^\s*npm publish \.\/publish-evidence\/missel2-nodes7-0\.1\.0-alpha\.2\.tgz --tag=alpha --access=public --provenance --ignore-scripts --registry=https:\/\/registry\.npmjs\.org\/$/m);
+  assert.doesNotMatch(wf,/^\s*npm publish publish-evidence\//m);
   assert.match(wf,/--tag=alpha --access=public --provenance/);
   assert.doesNotMatch(wf,/^\s*npm (?:stage publish|stage approve|dist-tag)\b/m);
   assert.match(wf,/cancel-in-progress: false/);
