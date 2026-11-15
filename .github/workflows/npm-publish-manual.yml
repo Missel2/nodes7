@@ -65,6 +65,12 @@ jobs:
           npm sbom --package-lock-only --omit=dev --sbom-format=cyclonedx > publish-evidence/sbom.cdx.json
           node scripts/release/verify-preflight.cjs publish-evidence
           node scripts/release/manual-publish-guard.cjs archive
+      - name: Test real local tarball package-spec in npm dry run (no registry write)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm publish ./publish-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --dry-run --tag=alpha --access=public --ignore-scripts --registry=https://registry.npmjs.org/
+          echo 'NODES7_ALPHA2_VERIFY_NPM_TARBALL_DRY_RUN_PASS'
       - name: Archive review JSON only (never executable tarball)
         uses: actions/upload-artifact@v4
         with:
@@ -133,6 +139,12 @@ jobs:
       - name: Require pinned publishing CLI
         run: test "$(npm --version)" = '11.15.0'
         shell: bash
+      - name: Verify npm 11.15 resolves exact local tarball (dry run; no registry write)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm publish ./publish-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --dry-run --tag=alpha --access=public --ignore-scripts --registry=https://registry.npmjs.org/
+          echo 'NODES7_ALPHA2_PINNED_NPM_TARBALL_DRY_RUN_PASS'
       - name: Publicly publish ONLY verified archive with alpha tag (OIDC)
         shell: bash
         env:
@@ -140,6 +152,6 @@ jobs:
         run: |
           set -euo pipefail
           test "$RELEASE_OPERATION" = 'publish'
-          npm publish publish-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --tag=alpha --access=public --provenance --ignore-scripts --registry=https://registry.npmjs.org/
+          npm publish ./publish-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --tag=alpha --access=public --provenance --ignore-scripts --registry=https://registry.npmjs.org/
           echo 'NODES7_ALPHA2_PUBLIC_NPM_PUBLISH_SUCCEEDED'
           echo 'No stage approval is required: the version is now publicly released.'
