@@ -43,6 +43,12 @@ jobs:
           npm sbom --package-lock-only --omit=dev --sbom-format=spdx > release-evidence/sbom.spdx.json
           npm sbom --package-lock-only --omit=dev --sbom-format=cyclonedx > release-evidence/sbom.cdx.json
           node scripts/release/verify-preflight.cjs release-evidence
+      - name: Prove npm CLI accepts the exact local tarball argument (read-only dry run)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm publish ./release-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --dry-run --tag=alpha --access=public --ignore-scripts --registry=https://registry.npmjs.org/
+          echo 'NODES7_ALPHA2_PREFLIGHT_NPM_PACKAGE_SPEC_DRY_RUN_PASS'
       - name: Archive non-executable review evidence only
         if: success()
         uses: actions/upload-artifact@v4
