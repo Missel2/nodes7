@@ -103,6 +103,18 @@ test('manual publish workflow never triggers without a deliberate dispatch',()=>
   assert.doesNotMatch(wf,/^\s*npm (?:stage publish|stage approve|dist-tag)\b/m);
   assert.match(wf,/cancel-in-progress: false/);
 });
+test('read-only CI exercises actual npm CLI package spec before any write',()=>{
+  const release = fs.readFileSync('.github/workflows/release-preflight.yml','utf8');
+  const wf = fs.readFileSync('.github/workflows/npm-publish-manual.yml','utf8');
+  const dryRun = 'npm publish ./publish-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --dry-run --tag=alpha --access=public --ignore-scripts --registry=https://registry.npmjs.org/';
+  assert.ok(release.includes('npm publish ./release-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --dry-run --tag=alpha --access=public --ignore-scripts --registry=https://registry.npmjs.org/'));
+  assert.equal(wf.split(dryRun).length - 1, 2, 'both read-only verify and gated publish jobs must test exact tarball spec');
+  assert.ok(wf.includes("NODES7_ALPHA2_PINNED_NPM_TARBALL_DRY_RUN_PASS"));
+  assert.ok(wf.includes("NODES7_ALPHA2_VERIFY_NPM_TARBALL_DRY_RUN_PASS"));
+  assert.ok(release.includes("NODES7_ALPHA2_PREFLIGHT_NPM_PACKAGE_SPEC_DRY_RUN_PASS"));
+  assert.doesNotMatch(wf,/^\s*npm publish publish-evidence\//m, 'raw relative path must never look like a git shorthand');
+  assert.doesNotMatch(release,/^\s*npm publish release-evidence\//m, 'read-only smoke must use explicit local path');
+});
 test('release inputs are self-derived and SHA/digest pinned, not manually typed',()=>{
   const wf=fs.readFileSync('.github/workflows/npm-publish-manual.yml','utf8');
   assert.doesNotMatch(wf,/^\s*source_sha:\s*$/m);
