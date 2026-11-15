@@ -1,7 +1,10 @@
 # Manual one-step npm alpha publication via GitHub Actions
 
-**Status:** source-only proposal. No new package has been published by
-this change. The maintainer asked to **reduce routine clicks**: one manual
+**Status 2026-11-15:** workflow source merged in approved PR #36; the first
+public publish attempt failed BEFORE npm upload because a relative archive
+path lacked the leading `./`. Draft fix PR #37 adds this explicit local
+specifier and real CLI dry-run checks; this source change does not publish
+any package. The npm/OIDC registry handshake is not yet qualified. The maintainer asked to **reduce routine clicks**: one manual
 GitHub Actions dispatch can now verify the exact archive and publish it
 directly, with *no additional npm stage approval*. This makes a completed
 `publish` workflow a **real public release**, not a preview.
@@ -66,6 +69,34 @@ stage/approve/publish on merge.
 
 Publishing command (after all gates):
 `npm publish <verified-package.tgz> --tag=alpha --access=public --provenance`.
+
+## First public-release attempt: diagnostic and regression (2026-11-15)
+
+[Run #43749926977](https://github.com/Missel2/nodes7/actions/runs/43749926977) succeeded at every source/CI/archive/
+checksum guard and pinned npm 11.15.0 installation, then failed in the
+final publish CLI invocation (exit 128). npm mistakenly tried to resolve
+`ssh://git@github.com/publish-evidence/missel2-nodes7-0.1.0-alpha.2.tgz.git`
+because the relative tarball argument had no explicit `./` prefix.
+Nothing reached the npm publication endpoint in that attempt.
+
+The corrected invocation uses:
+
+```bash
+npm publish ./publish-evidence/missel2-nodes7-0.1.0-alpha.2.tgz --tag=alpha --access=public --provenance --ignore-scripts --registry=https://registry.npmjs.org/
+```
+
+CI now deliberately verifies this exact command is present and rejects the
+bare relative shorthand; it also runs an actual `npm publish ./... --dry-run`
+against locally built audited tarballs without registry writes in the PR
+preflight and manual verify/publish jobs. A dry-run validates tarball spec
+handling but does **not** test the npm OIDC authorization handshake.
+
+Do not rerun failed workflow #43749926977: it is pinned to the old code.
+After explicit squash-merge authorization for the separate fix PR and
+successful master push CI, start a **new** manually chosen `publish`
+workflow only after confirming the public version is still absent.
+
+Reference: https://docs.npmjs.com/cli/v12/commands/npm-publish/
 
 ## After successful publishing
 
