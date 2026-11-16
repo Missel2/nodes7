@@ -1,12 +1,38 @@
 version: 2
 updates:
-  # Start with reviewable workflow updates only. npm updates remain a separate
-  # decision until the inherited stale v1 lockfile is repaired and npm ci is a gate.
+  # The root npm v3 lockfile and cross-platform npm ci checks are now
+  # established. Previously only GitHub Actions received version PRs.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: "Europe/Berlin"
+    # Five historical pre-lock-repair bot PRs are unresolved; leave room
+    # for current proposals instead of silently starving new updates.
+    open-pull-requests-limit: 8
+    cooldown:
+      default-days: 7
+    groups:
+      routine-dev-npm:
+        applies-to: version-updates
+        dependency-type: development
+        update-types: [minor, patch]
+        patterns: ["*"]
+    # Production transport dependencies (e.g. iso-on-tcp) and dev majors
+    # remain separately reviewable. Security alerts are not cooldown-gated.
+
+  # Hosted Actions updates also require exact-head CI, CodeQL and review.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "07:15"
+      timezone: "Europe/Berlin"
     open-pull-requests-limit: 3
     groups:
       actions-minor-patch:
+        applies-to: version-updates
         update-types: [minor, patch]
